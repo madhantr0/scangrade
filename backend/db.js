@@ -64,6 +64,10 @@ function saveUser(user) {
   DB.users[user.email.toLowerCase()] = user;
   save();
 }
+function deleteUser(email) {
+  delete DB.users[email.toLowerCase()];
+  save();
+}
 
 // ---- rosters ----
 function getTeacherRoster() {
@@ -73,6 +77,11 @@ function addTeacherToRoster(email) {
   if (!DB.rosterTeachers.includes(email)) DB.rosterTeachers.push(email);
   save();
 }
+function removeTeacherFromRoster(email) {
+  DB.rosterTeachers = DB.rosterTeachers.filter(e => e !== email);
+  delete DB.rosterStudents[email];
+  save();
+}
 function getStudentRoster(teacherEmail) {
   return DB.rosterStudents[teacherEmail] || [];
 }
@@ -80,6 +89,12 @@ function addStudentToRoster(teacherEmail, studentEmail) {
   if (!DB.rosterStudents[teacherEmail]) DB.rosterStudents[teacherEmail] = [];
   if (!DB.rosterStudents[teacherEmail].includes(studentEmail)) {
     DB.rosterStudents[teacherEmail].push(studentEmail);
+  }
+  save();
+}
+function removeStudentFromRoster(teacherEmail, studentEmail) {
+  if (DB.rosterStudents[teacherEmail]) {
+    DB.rosterStudents[teacherEmail] = DB.rosterStudents[teacherEmail].filter(e => e !== studentEmail);
   }
   save();
 }
@@ -107,9 +122,9 @@ function getResults(rollNo) {
 
 module.exports = {
   load, save, saveSync,
-  getUser, saveUser,
-  getTeacherRoster, addTeacherToRoster,
-  getStudentRoster, addStudentToRoster,
+  getUser, saveUser, deleteUser,
+  getTeacherRoster, addTeacherToRoster, removeTeacherFromRoster,
+  getStudentRoster, addStudentToRoster, removeStudentFromRoster,
   logSecurity, getSecurityLog,
   addResult, getResults
 };

@@ -180,6 +180,33 @@ app.patch('/api/admin/teachers/:email/status', auth, requireRole('admin'), (req,
   res.json({ ok: true, status: user.status });
 });
 
+// Admin can reset the password of any teacher, or any student under any teacher —
+// covers "they forgot their password" without ever storing/showing the real one.
+app.patch('/api/admin/users/:email/reset-password', auth, requireRole('admin'), async (req, res) => {
+  const email = req.params.email.toLowerCase();
+  const { newPassword } = req.body || {};
+  const user = db.getUser(email);
+  if (!user || (user.role !== 'teacher' && user.role !== 'student')) return res.status(404).json({ error: 'Account not found.' });
+  if (!validPassword(newPassword)) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  db.saveUser(user);
+  db.logSecurity({ event: `Password reset for ${user.role} by admin`, email: req.user.email, status: 'ok' });
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/teachers/:email', auth, requireRole('admin'), (req, res) => {
+  const email = req.params.email.toLowerCase();
+  const teacher = db.getUser(email);
+  if (!teacher || teacher.role !== 'teacher') return res.status(404).json({ error: 'Teacher not found.' });
+
+  const studentEmails = db.getStudentRoster(email);
+  studentEmails.forEach(se => db.deleteUser(se));
+  db.removeTeacherFromRoster(email);
+  db.deleteUser(email);
+  db.logSecurity({ event: `Teacher account deleted (with ${studentEmails.length} student(s))`, email: req.user.email, status: 'ok' });
+  res.json({ ok: true });
+});
+
 app.get('/api/admin/security-log', auth, requireRole('admin'), (req, res) => {
   res.json({ log: db.getSecurityLog() });
 });
@@ -206,6 +233,32 @@ app.post('/api/teacher/students', auth, requireRole('teacher'), async (req, res)
 app.get('/api/teacher/students', auth, requireRole('teacher'), (req, res) => {
   const students = db.getStudentRoster(req.user.email).map(se => db.getUser(se)).filter(Boolean).map(publicUser);
   res.json({ students });
+});
+
+app.delete('/api/teacher/students/:email', auth, requireRole('teacher'), (req, res) => {
+  const email = req.params.email.toLowerCase();
+  const student = db.getUser(email);
+  if (!student || student.role !== 'student' || student.teacherEmail !== req.user.email) {
+    return res.status(404).json({ error: 'Student not found.' });
+  }
+  db.removeStudentFromRoster(req.user.email, email);
+  db.deleteUser(email);
+  db.logSecurity({ event: 'Student account deleted', email: req.user.email, status: 'ok' });
+  res.json({ ok: true });
+});
+
+app.patch('/api/teacher/students/:email/reset-password', auth, requireRole('teacher'), async (req, res) => {
+  const email = req.params.email.toLowerCase();
+  const { newPassword } = req.body || {};
+  const student = db.getUser(email);
+  if (!student || student.role !== 'student' || student.teacherEmail !== req.user.email) {
+    return res.status(404).json({ error: 'Student not found.' });
+  }
+  if (!validPassword(newPassword)) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+  student.passwordHash = await bcrypt.hash(newPassword, 10);
+  db.saveUser(student);
+  db.logSecurity({ event: 'Password reset for student', email: req.user.email, status: 'ok' });
+  res.json({ ok: true });
 });
 
 // ---- grading (server holds the API key — never sent to the browser) ----

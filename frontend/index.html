@@ -449,10 +449,19 @@ async function renderAdminTeachers(){
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="chip toggle-students-btn" data-email="${esc(t.email)}">View students</button>
         <button class="chip toggle-status-btn" data-email="${esc(t.email)}" data-status="${t.status||'active'}">${t.status==='disabled'?'Enable account':'Disable account'}</button>
+        <button class="chip reset-pwd-btn" data-scope="teacher" data-email="${esc(t.email)}" data-name="${esc(t.name)}">Reset password</button>
+        <button class="chip delete-teacher-btn" data-email="${esc(t.email)}" data-name="${esc(t.name)}" data-count="${t.students.length}" style="color:var(--fail);border-color:var(--fail-l)">Delete account</button>
       </div>
       <div class="student-sub-list hidden" id="students-of-${btoa(t.email).replace(/=/g,'')}" style="margin-top:12px;border-top:1px solid var(--bord);padding-top:10px">
         ${t.students.length===0 ? '<div style="color:var(--mut);font-size:12px">No students added yet.</div>' :
-          t.students.map(s=>`<div class="row"><div><div class="row-name">${esc(s.name)}</div><div class="row-sub">${esc(s.email)} · Roll ${esc(s.rollNo||'—')}</div></div><span class="badge n">${esc(s.studyLevel||'—')}</span></div>`).join('')}
+          t.students.map(s=>`
+          <div class="row">
+            <div><div class="row-name">${esc(s.name)}</div><div class="row-sub">${esc(s.email)} · Roll ${esc(s.rollNo||'—')}</div></div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="badge n">${esc(s.studyLevel||'—')}</span>
+              <button class="chip reset-pwd-btn" data-scope="student" data-email="${esc(s.email)}" data-name="${esc(s.name)}" style="padding:4px 9px">Reset password</button>
+            </div>
+          </div>`).join('')}
       </div>
     </div>`).join('');
 
@@ -468,6 +477,51 @@ async function renderAdminTeachers(){
       showToast(`Teacher ${newStatus==='disabled'?'disabled':'enabled'}`);
       renderAdminTeachers();
     });
+  });
+  list.querySelectorAll('.reset-pwd-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      openResetPasswordModal(btn.dataset.name, async (newPassword)=>{
+        await api(`/admin/users/${encodeURIComponent(btn.dataset.email)}/reset-password`, { method:'PATCH', body: JSON.stringify({newPassword}) });
+      });
+    });
+  });
+  list.querySelectorAll('.delete-teacher-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const count = parseInt(btn.dataset.count, 10) || 0;
+      const warning = count > 0
+        ? `Delete ${btn.dataset.name}? This also permanently deletes their ${count} student account${count!==1?'s':''}. This cannot be undone.`
+        : `Delete ${btn.dataset.name}? This cannot be undone.`;
+      if(!confirm(warning)) return;
+      try{
+        await api(`/admin/teachers/${encodeURIComponent(btn.dataset.email)}`, { method:'DELETE' });
+        showToast('Teacher account deleted');
+        renderAdminTeachers();
+      }catch(e){ showToast(e.message, true); }
+    });
+  });
+}
+function openResetPasswordModal(name, onConfirm){
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.innerHTML = `
+    <div class="modal">
+      <div class="modal-h">Reset password for ${esc(name)} <i class="ti ti-x modal-close" id="close-modal"></i></div>
+      <div class="fi"><label class="fl">New password</label><input class="inp" id="rp-pwd" type="text" placeholder="Minimum 8 characters"></div>
+      <div class="errmsg" id="rp-err"></div>
+      <button class="btn" id="rp-save"><i class="ti ti-check"></i>Set new password</button>
+    </div>`;
+  document.body.appendChild(bg);
+  bg.querySelector('#close-modal').addEventListener('click', ()=>bg.remove());
+  bg.addEventListener('click', e=>{ if(e.target===bg) bg.remove(); });
+  bg.querySelector('#rp-save').addEventListener('click', async ()=>{
+    const err = bg.querySelector('#rp-err');
+    const pwd = bg.querySelector('#rp-pwd').value;
+    err.textContent = '';
+    try{
+      await onConfirm(pwd);
+      showToast('Password reset');
+      bg.remove();
+    }catch(e){ err.textContent = e.message; }
   });
 }
 function openAddTeacherModal(){
@@ -502,18 +556,33 @@ function openAddTeacherModal(){
     }catch(e){ err.textContent = e.message; }
   });
 }
+let securityShowAll = false;
 async function renderAdminSecurity(){
   const { log } = await api('/admin/security-log');
+  const twelveHoursAgo = Date.now() - 12*60*60*1000;
+  const recent = log.filter(l => l.time >= twelveHoursAgo);
+  const shown = securityShowAll ? log : recent;
+  const olderCount = log.length - recent.length;
+
   document.getElementById('content').innerHTML = `
     <div class="card">
-      <div class="card-h"><i class="ti ti-tool"></i>Login &amp; account activity</div>
-      <div class="card-sub">Most recent 500 events, newest first</div>
-      ${log.map(l=>`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+        <div>
+          <div class="card-h"><i class="ti ti-tool"></i>Login &amp; account activity</div>
+          <div class="card-sub" style="margin-bottom:0">${securityShowAll ? `All ${log.length} events` : `Last 12 hours (${recent.length} event${recent.length!==1?'s':''})`}, newest first</div>
+        </div>
+        ${olderCount > 0 ? `<button class="chip" id="sec-toggle-btn">${securityShowAll ? 'Show only last 12 hours' : `See all logs (${olderCount} more)`}</button>` : ''}
+      </div>
+      <div style="margin-top:14px">
+      ${shown.map(l=>`
         <div class="row">
           <div><div class="row-name">${esc(l.event)}</div><div class="row-sub">${esc(l.email||'—')}${l.role?' · '+esc(l.role):''} · ${fmtTime(l.time)}</div></div>
           <span class="badge ${l.status==='ok'?'g':'r'}">${l.status==='ok'?'OK':'FAILED'}</span>
-        </div>`).join('') || '<div style="color:var(--mut);font-size:12.5px">No events recorded yet.</div>'}
+        </div>`).join('') || '<div style="color:var(--mut);font-size:12.5px">No events in this window.</div>'}
+      </div>
     </div>`;
+  const toggleBtn = document.getElementById('sec-toggle-btn');
+  if(toggleBtn) toggleBtn.addEventListener('click', ()=>{ securityShowAll = !securityShowAll; renderAdminSecurity(); });
 }
 
 /* ============================================================
@@ -529,9 +598,34 @@ async function renderTeacherStudents(){
       <div class="card-h"><i class="ti ti-users"></i>Your students</div>
       <div class="card-sub">${students.length} student${students.length!==1?'s':''}</div>
       ${students.length===0 ? '<div style="color:var(--mut);font-size:12.5px">No students yet.</div>' :
-        students.map(s=>`<div class="row"><div><div class="row-name">${esc(s.name)}</div><div class="row-sub">${esc(s.email)} · Roll ${esc(s.rollNo||'—')}</div></div><span class="badge n">${esc(s.studyLevel||'—')}</span></div>`).join('')}
+        students.map(s=>`
+        <div class="row">
+          <div><div class="row-name">${esc(s.name)}</div><div class="row-sub">${esc(s.email)} · Roll ${esc(s.rollNo||'—')}</div></div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="badge n">${esc(s.studyLevel||'—')}</span>
+            <button class="chip reset-student-pwd-btn" data-email="${esc(s.email)}" data-name="${esc(s.name)}" style="padding:4px 9px">Reset password</button>
+            <button class="delete-student-btn" data-email="${esc(s.email)}" data-name="${esc(s.name)}" title="Delete student" style="background:transparent;border:1px solid var(--fail-l);color:var(--fail);width:26px;height:26px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-x" style="font-size:13px"></i></button>
+          </div>
+        </div>`).join('')}
     </div>`;
   document.getElementById('add-student-btn').addEventListener('click', openAddStudentModal);
+  document.querySelectorAll('.reset-student-pwd-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      openResetPasswordModal(btn.dataset.name, async (newPassword)=>{
+        await api(`/teacher/students/${encodeURIComponent(btn.dataset.email)}/reset-password`, { method:'PATCH', body: JSON.stringify({newPassword}) });
+      });
+    });
+  });
+  document.querySelectorAll('.delete-student-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm(`Delete ${btn.dataset.name}? This cannot be undone.`)) return;
+      try{
+        await api(`/teacher/students/${encodeURIComponent(btn.dataset.email)}`, { method:'DELETE' });
+        showToast('Student account deleted');
+        renderTeacherStudents();
+      }catch(e){ showToast(e.message, true); }
+    });
+  });
 }
 function openAddStudentModal(){
   const bg = document.createElement('div');
