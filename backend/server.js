@@ -4,6 +4,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const { createCanvas } = require('@napi-rs/canvas');
 const db = require('./db');
 
 const app = express();
@@ -12,10 +13,45 @@ const FORCE_HTTPS = process.env.FORCE_HTTPS === 'true';
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'madhanadmin@gmail.com').toLowerCase();
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Demo@test';
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const AI_PROVIDER = (process.env.AI_PROVIDER || (GEMINI_API_KEY ? 'gemini' : 'anthropic')).toLowerCase();
+
+// A permanent teacher account, recreated automatically every time the server boots —
+// so it survives Render wiping its disk on redeploy/restart. Only created if both
+// TEACHER_EMAIL and TEACHER_PASSWORD are set as env vars (never hardcode a real
+// password in code — set it in Render's Environment tab, not here).
+const TEACHER_EMAIL = (process.env.TEACHER_EMAIL || '').toLowerCase();
+const TEACHER_PASSWORD = process.env.TEACHER_PASSWORD || '';
+const TEACHER_NAME = process.env.TEACHER_NAME || 'Staff';
+const TEACHER_SUBJECT = process.env.TEACHER_SUBJECT || 'General';
+
+// A permanent student account under that teacher, same idea — recreated on every boot.
+const STUDENT_EMAIL = (process.env.STUDENT_EMAIL || '').toLowerCase();
+const STUDENT_PASSWORD = process.env.STUDENT_PASSWORD || '';
+const STUDENT_NAME = process.env.STUDENT_NAME || 'Student';
+const STUDENT_ROLL = process.env.STUDENT_ROLL || '';
+const STUDENT_LEVEL = process.env.STUDENT_LEVEL || '';
+
+// ---- AI providers: configure as many keys AND as many providers as you have.
+// On each grade request: for the current provider, every key is tried in order
+// (rotates past a dead/rate-limited/invalid key to the next one); if every key for
+// that provider fails, it moves to the next provider in PROVIDER_ORDER entirely.
+// So a single bad key, a single deprecated model, or a whole provider being down
+// all get automatically routed around.
+function parseKeyList(multiVar, singleVar) {
+  const raw = process.env[multiVar] || process.env[singleVar] || '';
+  return raw.split(',').map(s => s.trim()).filter(Boolean);
+}
+const GEMINI_API_KEYS = parseKeyList('GEMINI_API_KEYS', 'GEMINI_API_KEY');
+const OPENAI_API_KEYS = parseKeyList('OPENAI_API_KEYS', 'OPENAI_API_KEY');
+const ANTHROPIC_API_KEYS = parseKeyList('ANTHROPIC_API_KEYS', 'ANTHROPIC_API_KEY');
+
+// Comma-separated list, tried in order for Gemini specifically — protects against a
+// single model name getting deprecated. Check what your key can use at:
+// https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_KEY
+const GEMINI_MODELS = (process.env.GEMINI_MODELS || process.env.GEMINI_MODEL || 'gemini-2.0-flash')
+  .split(',').map(s => s.trim()).filter(Boolean);
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const PROVIDER_ORDER = (process.env.PROVIDER_ORDER || 'gemini,openai,anthropic')
+  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 
 // Comma-separated list of allowed frontend origins, e.g.
 // FRONTEND_URL=https://scangrade.netlify.app,http://localhost:5500
@@ -53,7 +89,36 @@ async function seedAdmin() {
     console.log(`Seeded admin account: ${ADMIN_EMAIL}`);
   }
 }
+async function seedTeacher() {
+  if (!TEACHER_EMAIL || !TEACHER_PASSWORD) return;
+  const existing = db.getUser(TEACHER_EMAIL);
+  if (!existing) {
+    const passwordHash = await bcrypt.hash(TEACHER_PASSWORD, 10);
+    db.saveUser({
+      email: TEACHER_EMAIL, role: 'teacher', name: TEACHER_NAME, subject: TEACHER_SUBJECT,
+      passwordHash, createdBy: 'system-seed', createdAt: Date.now(), status: 'active', loginCount: 0
+    });
+    db.addTeacherToRoster(TEACHER_EMAIL);
+    console.log(`Seeded permanent teacher account: ${TEACHER_EMAIL}`);
+  }
+}
+async function seedStudent() {
+  if (!STUDENT_EMAIL || !STUDENT_PASSWORD || !TEACHER_EMAIL) return;
+  const existing = db.getUser(STUDENT_EMAIL);
+  if (!existing) {
+    const passwordHash = await bcrypt.hash(STUDENT_PASSWORD, 10);
+    db.saveUser({
+      email: STUDENT_EMAIL, role: 'student', name: STUDENT_NAME, rollNo: STUDENT_ROLL, studyLevel: STUDENT_LEVEL,
+      passwordHash, createdBy: 'system-seed', teacherEmail: TEACHER_EMAIL,
+      createdAt: Date.now(), status: 'active', loginCount: 0
+    });
+    db.addStudentToRoster(TEACHER_EMAIL, STUDENT_EMAIL);
+    console.log(`Seeded permanent student account: ${STUDENT_EMAIL}`);
+  }
+}
 seedAdmin();
+seedTeacher();
+seedStudent();
 
 // ---------- helpers ----------
 function validPassword(pwd) { return typeof pwd === 'string' && pwd.length >= 8; }
@@ -273,29 +338,129 @@ Respond with ONLY valid JSON (no markdown fences, no commentary) in exactly this
 {"totalObtained":number,"totalMarks":number,"passed":boolean,"overallFeedback":"short summary string","questions":[{"qNo":"1","obtained":number,"outOf":number,"feedback":"short specific feedback"}]}`;
 }
 
-async function gradeWithGemini(fileList, promptText) {
+// Tries every model in GEMINI_MODELS in order — protects against one specific model
+// name getting deprecated (which is exactly what broke grading before).
+async function gradeWithGeminiKey(apiKey, fileList, promptText) {
   const parts = fileList.map(f => ({
     inlineData: { mimeType: f.mimetype || 'image/jpeg', data: f.buffer.toString('base64') }
   }));
   parts.push({ text: promptText });
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  const apiRes = await fetch(url, {
+  const errors = [];
+  for (const model of GEMINI_MODELS) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const apiRes = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } })
+      });
+      const data = await apiRes.json();
+      if (!apiRes.ok) throw new Error(data.error?.message || `model ${model} returned an error.`);
+      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+      if (!text) throw new Error(`no response from model ${model}.`);
+      return text;
+    } catch (e) {
+      errors.push(`${model}: ${e.message}`);
+    }
+  }
+  throw new Error(errors.join(' | '));
+}
+async function gradeWithGemini(fileList, promptText) {
+  if (GEMINI_API_KEYS.length === 0) throw new Error('No Gemini API keys configured.');
+  const errors = [];
+  for (let i = 0; i < GEMINI_API_KEYS.length; i++) {
+    try {
+      return await gradeWithGeminiKey(GEMINI_API_KEYS[i], fileList, promptText);
+    } catch (e) {
+      errors.push(`key #${i + 1}: ${e.message}`);
+    }
+  }
+  throw new Error('All Gemini keys failed — ' + errors.join(' || '));
+}
+
+// Renders PDF pages to PNG images (max 5 pages) so any provider that only accepts
+// images — currently OpenAI's plain chat endpoint — can still read a PDF. Gemini and
+// Claude get the original PDF bytes directly; this conversion is only used as a
+// fallback path when a PDF needs to reach OpenAI.
+const MAX_PDF_PAGES = 5;
+async function pdfBufferToImageFiles(buffer, originalName) {
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const data = new Uint8Array(buffer);
+  const pdf = await pdfjsLib.getDocument({ data, disableFontFace: true }).promise;
+  const pageCount = Math.min(pdf.numPages, MAX_PDF_PAGES);
+  const images = [];
+  for (let i = 1; i <= pageCount; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = createCanvas(viewport.width, viewport.height);
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    images.push({ buffer: canvas.toBuffer('image/png'), mimetype: 'image/png', originalname: `${originalName}-p${i}.png` });
+  }
+  return images;
+}
+
+async function gradeWithOpenAIKey(apiKey, imageFiles, promptText) {
+  const content = imageFiles.map(f => ({
+    type: 'image_url',
+    image_url: { url: `data:${f.mimetype || 'image/jpeg'};base64,${f.buffer.toString('base64')}` }
+  }));
+  content.push({ type: 'text', text: promptText });
+
+  const apiRes = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({
-      contents: [{ parts }],
-      generationConfig: { responseMimeType: 'application/json' }
+      model: OPENAI_MODEL,
+      response_format: { type: 'json_object' },
+      messages: [{ role: 'user', content }]
     })
   });
   const data = await apiRes.json();
-  if (!apiRes.ok) throw new Error(data.error?.message || 'Gemini returned an error.');
-  const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
-  if (!text) throw new Error('No response from Gemini.');
+  if (!apiRes.ok) throw new Error(data.error?.message || 'OpenAI returned an error.');
+  const text = data.choices?.[0]?.message?.content || '';
+  if (!text) throw new Error('No response from OpenAI.');
   return text;
 }
+async function gradeWithOpenAI(fileList, promptText) {
+  if (OPENAI_API_KEYS.length === 0) throw new Error('No OpenAI API keys configured.');
 
+  let imageFiles = [];
+  for (const f of fileList) {
+    if (f.mimetype === 'application/pdf') {
+      const rendered = await pdfBufferToImageFiles(f.buffer, f.originalname || 'document');
+      imageFiles.push(...rendered);
+    } else {
+      imageFiles.push(f);
+    }
+  }
+
+  const errors = [];
+  for (let i = 0; i < OPENAI_API_KEYS.length; i++) {
+    try {
+      return await gradeWithOpenAIKey(OPENAI_API_KEYS[i], imageFiles, promptText);
+    } catch (e) {
+      errors.push(`key #${i + 1}: ${e.message}`);
+    }
+  }
+  throw new Error('All OpenAI keys failed — ' + errors.join(' || '));
+}
+
+async function gradeWithAnthropicKey(apiKey, content) {
+  const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 2000, messages: [{ role: 'user', content }] })
+  });
+  const data = await apiRes.json();
+  if (!apiRes.ok) throw new Error(data.error?.message || 'Claude returned an error.');
+  const textBlock = (data.content || []).find(b => b.type === 'text');
+  if (!textBlock) throw new Error('No response from Claude.');
+  return textBlock.text;
+}
 async function gradeWithAnthropic(fileList, promptText) {
+  if (ANTHROPIC_API_KEYS.length === 0) throw new Error('No Anthropic API keys configured.');
   const content = fileList.map(f => {
     const isPdf = f.mimetype === 'application/pdf';
     const base64 = f.buffer.toString('base64');
@@ -305,28 +470,42 @@ async function gradeWithAnthropic(fileList, promptText) {
   });
   content.push({ type: 'text', text: promptText });
 
-  const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 2000, messages: [{ role: 'user', content }] })
-  });
-  const data = await apiRes.json();
-  if (!apiRes.ok) throw new Error(data.error?.message || 'Claude returned an error.');
-  const textBlock = (data.content || []).find(b => b.type === 'text');
-  if (!textBlock) throw new Error('No response from Claude.');
-  return textBlock.text;
+  const errors = [];
+  for (let i = 0; i < ANTHROPIC_API_KEYS.length; i++) {
+    try {
+      return await gradeWithAnthropicKey(ANTHROPIC_API_KEYS[i], content);
+    } catch (e) {
+      errors.push(`key #${i + 1}: ${e.message}`);
+    }
+  }
+  throw new Error('All Anthropic keys failed — ' + errors.join(' || '));
+}
+
+const PROVIDERS = { gemini: gradeWithGemini, openai: gradeWithOpenAI, anthropic: gradeWithAnthropic };
+
+// Tries each configured provider in PROVIDER_ORDER; on any failure (deprecated model,
+// quota, bad key, outage) it moves to the next one instead of failing the whole request.
+async function gradeExam(fileList, promptText) {
+  const attempts = [];
+  for (const name of PROVIDER_ORDER) {
+    const fn = PROVIDERS[name];
+    if (!fn) continue;
+    try {
+      const text = await fn(fileList, promptText);
+      return { text, provider: name };
+    } catch (e) {
+      attempts.push(`${name} → ${e.message}`);
+    }
+  }
+  throw new Error('All configured AI providers failed. ' + attempts.join(' | '));
 }
 
 app.post('/api/grade', auth, requireRole('teacher'),
   upload.fields([{ name: 'qb', maxCount: 1 }, { name: 'key', maxCount: 1 }, { name: 'sheet', maxCount: 1 }]),
   async (req, res) => {
-    if (AI_PROVIDER === 'gemini' && !GEMINI_API_KEY) return res.status(500).json({ error: 'Server is missing GEMINI_API_KEY. Set it in your environment variables.' });
-    if (AI_PROVIDER === 'anthropic' && !ANTHROPIC_API_KEY) return res.status(500).json({ error: 'Server is missing ANTHROPIC_API_KEY. Set it in your environment variables.' });
-
+    if (GEMINI_API_KEYS.length === 0 && OPENAI_API_KEYS.length === 0 && ANTHROPIC_API_KEYS.length === 0) {
+      return res.status(500).json({ error: 'No AI provider configured. Set at least one of GEMINI_API_KEYS, OPENAI_API_KEYS, ANTHROPIC_API_KEYS.' });
+    }
     const files = req.files || {};
     if (!files.sheet || !files.sheet[0]) return res.status(400).json({ error: 'Answer sheet is required.' });
 
@@ -338,16 +517,14 @@ app.post('/api/grade', auth, requireRole('teacher'),
     const promptText = buildGradingPrompt(instructions, subject);
 
     try {
-      const rawText = AI_PROVIDER === 'gemini'
-        ? await gradeWithGemini(fileList, promptText)
-        : await gradeWithAnthropic(fileList, promptText);
-
+      const { text: rawText, provider } = await gradeExam(fileList, promptText);
       const clean = rawText.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(clean);
 
       if (rollNo) {
         db.addResult(rollNo, { ...parsed, subject: subject || 'Exam', gradedAt: Date.now(), gradedBy: req.user.email });
       }
+      console.log(`Graded via ${provider}`);
       res.json({ result: parsed });
     } catch (e) {
       console.error(e);
@@ -363,4 +540,4 @@ app.get('/api/student/results', auth, requireRole('student'), (req, res) => {
 
 app.use((req, res) => res.status(404).json({ error: 'Not found.' }));
 
-app.listen(PORT, () => console.log(`ScanGrade API running on port ${PORT} (provider: ${AI_PROVIDER})`));
+app.listen(PORT, () => console.log(`ScanGrade API running on port ${PORT} (providers: ${PROVIDER_ORDER.join(', ')})`));
