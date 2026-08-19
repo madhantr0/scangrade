@@ -153,19 +153,19 @@ app.get('/api/health', (req, res) => res.json({ ok: true, provider: AI_PROVIDER 
 
 // ============ AUTH ============
 app.post('/api/auth/login', async (req, res) => {
-  const { email, password, role } = req.body || {};
+  const { email, password } = req.body || {};
   const cleanEmail = (email || '').trim().toLowerCase();
-  if (!cleanEmail || !password || !role) return res.status(400).json({ error: 'Missing email, password or role.' });
+  if (!cleanEmail || !password) return res.status(400).json({ error: 'Missing email or password.' });
 
   const user = db.getUser(cleanEmail);
-  if (!user || user.role !== role) {
-    db.logSecurity({ event: `Failed login (${role})`, email: cleanEmail, status: 'fail' });
-    return res.status(401).json({ error: 'Invalid credentials or wrong role selected.' });
+  if (!user) {
+    db.logSecurity({ event: 'Failed login', email: cleanEmail, status: 'fail' });
+    return res.status(401).json({ error: 'Invalid credentials.' });
   }
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) {
-    db.logSecurity({ event: `Failed login (${role})`, email: cleanEmail, status: 'fail' });
-    return res.status(401).json({ error: 'Invalid credentials or wrong role selected.' });
+    db.logSecurity({ event: 'Failed login', email: cleanEmail, status: 'fail' });
+    return res.status(401).json({ error: 'Invalid credentials.' });
   }
   if (user.status === 'disabled') return res.status(403).json({ error: 'This account has been disabled by an admin.' });
 
@@ -174,6 +174,8 @@ app.post('/api/auth/login', async (req, res) => {
   db.saveUser(user);
   db.logSecurity({ event: 'Login success', email: cleanEmail, role: user.role, status: 'ok' });
 
+  // role comes back from the account itself — the frontend routes to the right
+  // dashboard based on this, the user never has to pick it.
   res.json({ token: signToken(user), user: publicUser(user) });
 });
 
@@ -327,12 +329,24 @@ app.patch('/api/teacher/students/:email/reset-password', auth, requireRole('teac
 });
 
 // ---- grading (server holds the API key — never sent to the browser) ----
-function buildGradingPrompt(instructions, subject) {
+// temperature: 0 is set on every provider call below to make grading as close to
+// idempotent as each API allows — same file + same instructions should produce the
+// same marks on a re-run. Worth knowing honestly: temperature 0 removes deliberate
+// randomness, but none of these providers guarantee bit-for-bit identical output on
+// every single call (infra-level nondeterminism can still cause tiny variation) —
+// this is the standard, correct way to make it consistent, not a 100% mathematical
+// guarantee from any of the three providers.
+function buildGradingPrompt({ instructions, subject, examType, studentName, rollNo }) {
   return `You are grading a student's handwritten (or typed) exam answer sheet. Files are attached in this order where present: question bank, answer key, then the student's answer sheet. The answer sheet may be written in Tamil or English — read and grade either.
+
+Student: ${studentName || 'Not provided'}
+Roll number: ${rollNo || 'Not provided'}
+Subject: ${subject || 'Exam'}
+Exam type: ${examType || 'Not specified'}
 
 Teacher's grading instructions: ${instructions || 'Use standard grading: correct method and correct final answer both count.'}
 
-Subject: ${subject || 'Exam'}
+Grade consistently and deterministically — if shown the same answer sheet again, produce the same marks and feedback every time. Do not vary wording or scoring for its own sake.
 
 Respond with ONLY valid JSON (no markdown fences, no commentary) in exactly this shape:
 {"totalObtained":number,"totalMarks":number,"passed":boolean,"overallFeedback":"short summary string","questions":[{"qNo":"1","obtained":number,"outOf":number,"feedback":"short specific feedback"}]}`;
@@ -353,7 +367,7 @@ async function gradeWithGeminiKey(apiKey, fileList, promptText) {
       const apiRes = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } })
+        body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json', temperature: 0 } })
       });
       const data = await apiRes.json();
       if (!apiRes.ok) throw new Error(data.error?.message || `model ${model} returned an error.`);
@@ -414,6 +428,7 @@ async function gradeWithOpenAIKey(apiKey, imageFiles, promptText) {
     body: JSON.stringify({
       model: OPENAI_MODEL,
       response_format: { type: 'json_object' },
+      temperature: 0,
       messages: [{ role: 'user', content }]
     })
   });
@@ -451,7 +466,7 @@ async function gradeWithAnthropicKey(apiKey, content) {
   const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 2000, messages: [{ role: 'user', content }] })
+    body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 2000, temperature: 0, messages: [{ role: 'user', content }] })
   });
   const data = await apiRes.json();
   if (!apiRes.ok) throw new Error(data.error?.message || 'Claude returned an error.');
@@ -509,12 +524,12 @@ app.post('/api/grade', auth, requireRole('teacher'),
     const files = req.files || {};
     if (!files.sheet || !files.sheet[0]) return res.status(400).json({ error: 'Answer sheet is required.' });
 
-    const { instructions, subject, rollNo } = req.body || {};
+    const { instructions, subject, rollNo, studentName, examType } = req.body || {};
     const fileList = [];
     if (files.qb && files.qb[0]) fileList.push(files.qb[0]);
     if (files.key && files.key[0]) fileList.push(files.key[0]);
     fileList.push(files.sheet[0]);
-    const promptText = buildGradingPrompt(instructions, subject);
+    const promptText = buildGradingPrompt({ instructions, subject, examType, studentName, rollNo });
 
     try {
       const { text: rawText, provider } = await gradeExam(fileList, promptText);
@@ -522,7 +537,7 @@ app.post('/api/grade', auth, requireRole('teacher'),
       const parsed = JSON.parse(clean);
 
       if (rollNo) {
-        db.addResult(rollNo, { ...parsed, subject: subject || 'Exam', gradedAt: Date.now(), gradedBy: req.user.email });
+        db.addResult(rollNo, { ...parsed, subject: subject || 'Exam', examType: examType || '', studentName: studentName || '', gradedAt: Date.now(), gradedBy: req.user.email });
       }
       console.log(`Graded via ${provider}`);
       res.json({ result: parsed });

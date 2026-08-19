@@ -5,138 +5,161 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ScanGrade</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#080b0f;--surf:#0d1117;--card:#111827;--card2:#0d1420;--bord:#1c2a3a;
-  --pass:#16a34a;--pass-l:rgba(22,163,74,.12);
-  --fail:#dc2626;--fail-l:rgba(220,38,38,.12);
-  --brand:#ef4444;--brand-l:rgba(239,68,68,.1);--brand-b:rgba(239,68,68,.28);
-  --grad:linear-gradient(135deg,#16a34a 0%,#ef4444 100%);
-  --grad-l:linear-gradient(135deg,rgba(22,163,74,.14) 0%,rgba(239,68,68,.14) 100%);
-  --warn:#d97706;--warn-l:rgba(217,119,6,.12);
-  --txt:#e2e8f0;--mut:#7c8aa0;--wh:#f8fafc;
+  --ink:#200E01;--wine:#5B0202;--crimson:#8B0000;--parch:#EDE7C7;
+  --ink-a08:rgba(32,14,1,.08);--ink-a15:rgba(32,14,1,.15);--ink-a40:rgba(32,14,1,.4);--ink-a65:rgba(32,14,1,.65);
+  --wine-a20:rgba(91,2,2,.2);--wine-a40:rgba(91,2,2,.45);--wine-a70:rgba(91,2,2,.7);
+  --crim-a10:rgba(139,0,0,.1);--crim-a18:rgba(139,0,0,.18);--crim-a35:rgba(139,0,0,.35);
+  --parch-a08:rgba(237,231,199,.08);--parch-a15:rgba(237,231,199,.15);--parch-a30:rgba(237,231,199,.32);--parch-a55:rgba(237,231,199,.55);
 }
-html,body{min-height:100vh;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt)}
+html,body{min-height:100vh;font-family:'Quicksand',sans-serif;background:var(--ink);color:var(--parch);font-weight:500}
 button,input,textarea,select{font-family:inherit}
 a{color:inherit}
 ::-webkit-scrollbar{width:8px;height:8px}
-::-webkit-scrollbar-thumb{background:#1c2a3a;border-radius:8px}
+::-webkit-scrollbar-thumb{background:var(--wine);border-radius:8px}
 .hidden{display:none!important}
 i.ti{display:inline-flex;align-items:center;justify-content:center;width:1em;height:1em;flex-shrink:0;vertical-align:-0.15em}
 i.ti svg{width:100%;height:100%;display:block}
+.eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
 
-.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;position:relative;overflow:hidden}
-.login-wrap::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 45% at 50% 0%,rgba(239,68,68,.10),transparent);pointer-events:none}
-.login-card{background:var(--surf);border:1px solid var(--bord);border-radius:16px;padding:34px;width:100%;max-width:392px;position:relative;z-index:2}
-.brand{font-family:'Syne',sans-serif;font-size:23px;font-weight:800;color:var(--wh);display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:6px}
-.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--grad)}
-.login-sub{font-size:12.5px;color:var(--mut);text-align:center;margin-bottom:26px}
-.role-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}
-.role-tab{background:var(--card);border:1px solid var(--bord);border-radius:10px;padding:12px 4px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;color:var(--mut);font-size:12.5px;transition:all .15s}
-.role-tab i{font-size:18px}
-.role-tab.active{border-color:#22b35e;color:var(--wh);background:var(--grad-l)}
-.fi{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
-.fl{font-size:11.5px;color:var(--mut);font-weight:500}
-.inp{background:var(--card);border:1px solid var(--bord);border-radius:8px;padding:11px 13px;color:var(--txt);font-size:14px;outline:none;width:100%;transition:border-color .15s}
-.inp:focus{border-color:#22b35e;box-shadow:0 0 0 3px rgba(34,179,94,.12)}
+/* ---------- signature element: the seal ---------- */
+.seal{border-radius:50%;background:radial-gradient(circle at 34% 30%, var(--crimson), var(--wine) 75%);position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 0 1px var(--parch-a30), inset 0 0 0 1px var(--ink-a40)}
+.seal::before{content:'';position:absolute;inset:-6px;border-radius:50%;background:repeating-conic-gradient(var(--parch-a30) 0deg 6deg, transparent 6deg 14deg);opacity:.55;mask:radial-gradient(circle, transparent 70%, #000 71%, #000 100%);-webkit-mask:radial-gradient(circle, transparent 70%, #000 71%, #000 100%);animation:seal-spin 14s linear infinite}
+@keyframes seal-spin{to{transform:rotate(360deg)}}
+.seal-mark{width:52%;height:52%;color:var(--parch);position:relative;z-index:1}
+.seal-mark svg{width:100%;height:100%;display:block}
+.seal-mono{font-family:'Quicksand',sans-serif;font-weight:700;color:var(--parch);letter-spacing:.02em}
+
+/* ---------- login ---------- */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden;background:
+  radial-gradient(ellipse 70% 55% at 50% -10%, var(--wine-a40), transparent 60%), var(--ink)}
+.login-card{background:var(--parch);border-radius:6px;padding:40px 38px 34px;width:100%;max-width:400px;position:relative;z-index:2;box-shadow:0 30px 70px var(--ink-a65);border:1px solid var(--wine-a40)}
+.login-card::before{content:'';position:absolute;inset:7px;border:1px solid var(--ink-a15);border-radius:3px;pointer-events:none}
+.login-seal-wrap{display:flex;justify-content:center;margin-bottom:18px}
+.login-seal{width:60px;height:60px}
+.login-seal .seal-mono{font-size:19px}
+.brand{font-family:'Quicksand',sans-serif;font-size:24px;font-weight:700;color:var(--ink);text-align:center;letter-spacing:.04em}
+.brand-rule{width:36px;height:2px;background:var(--crimson);margin:10px auto 12px;border-radius:2px}
+.login-sub{font-size:12px;color:var(--ink-a65);text-align:center;margin-bottom:28px;letter-spacing:.04em}
+.fi{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.fl{font-size:10.5px;color:var(--ink-a65);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.inp{background:transparent;border:none;border-bottom:1.5px solid var(--ink-a40);border-radius:0;padding:9px 2px;color:var(--ink);font-size:15px;outline:none;width:100%;transition:border-color .15s;font-family:inherit;font-weight:500}
+.inp::placeholder{color:var(--ink-a40)}
+.inp:focus{border-color:var(--crimson)}
+.card .inp, .modal .inp{background:var(--parch);border:1px solid var(--ink-a15);border-radius:5px;padding:11px 13px}
+.card .inp:focus, .modal .inp:focus{border-color:var(--crimson);box-shadow:0 0 0 3px var(--crim-a10)}
 .pwd-wrap{position:relative}
-.pwd-eye{position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--mut);cursor:pointer;font-size:15px}
-.btn{background:var(--grad);border:none;color:#fff;font-size:14px;font-weight:600;padding:12px;border-radius:8px;cursor:pointer;width:100%;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
-.btn:hover{filter:brightness(1.08)}
+.pwd-eye{position:absolute;right:2px;top:50%;transform:translateY(-50%);color:var(--ink-a65);cursor:pointer;font-size:16px}
+.btn{background:var(--crimson);border:1px solid var(--ink-a15);color:var(--parch);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:13px;border-radius:4px;cursor:pointer;width:100%;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover{background:var(--wine)}
 .btn:disabled{opacity:.55;cursor:not-allowed}
-.btn-outline{background:transparent;border:1px solid var(--bord);color:var(--txt);font-size:13px;font-weight:500;padding:10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}
-.btn-outline:hover{border-color:#22b35e;color:#22b35e}
-.errmsg{font-size:12px;color:var(--fail);text-align:center;margin-top:6px;min-height:16px}
-.okmsg{font-size:12px;color:var(--pass);text-align:center;margin-top:6px;min-height:16px}
+.btn-outline{background:transparent;border:1.5px solid var(--ink-a40);color:var(--ink);font-size:12px;font-weight:700;letter-spacing:.06em;padding:10px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;text-transform:uppercase}
+.btn-outline:hover{border-color:var(--crimson);color:var(--crimson)}
+.errmsg{font-size:12px;color:var(--crimson);text-align:center;margin-top:10px;min-height:16px;font-weight:600}
+.okmsg{font-size:12px;color:var(--wine);text-align:center;margin-top:10px;min-height:16px;font-weight:600}
 
+/* ---------- app shell ---------- */
 .app{display:none;min-height:100vh}
 .app.show{display:flex}
-.sidebar{width:220px;flex-shrink:0;background:var(--surf);border-right:1px solid var(--bord);display:flex;flex-direction:column;padding:18px 14px}
-.sb-brand{font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:var(--wh);display:flex;align-items:center;gap:8px;padding:6px 8px 20px}
-.sb-brand .dot{width:8px;height:8px;border-radius:50%;background:var(--grad)}
-.sb-nav{display:flex;flex-direction:column;gap:3px;flex:1}
-.sb-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:var(--mut);font-size:13.5px;font-weight:500;cursor:pointer;transition:all .15s;position:relative}
-.sb-item i{font-size:17px;width:18px;text-align:center}
-.sb-item:hover{background:rgba(255,255,255,.03);color:var(--txt)}
-.sb-item.active{background:var(--grad-l);color:var(--wh)}
-.sb-item.active::before{content:'';position:absolute;left:-14px;top:6px;bottom:6px;width:3px;border-radius:3px;background:var(--grad)}
-.sb-foot{border-top:1px solid var(--bord);padding-top:12px;margin-top:8px}
-.sb-user{display:flex;align-items:center;gap:9px;padding:8px;border-radius:8px}
-.avatar{width:32px;height:32px;border-radius:50%;background:var(--card);border:1px solid var(--bord);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--brand);flex-shrink:0}
-.sb-uname{font-size:12.5px;font-weight:600;color:var(--wh);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sb-urole{font-size:10.5px;color:var(--mut)}
-.sb-logout{width:100%;margin-top:8px;background:transparent;border:1px solid var(--bord);color:var(--mut);font-size:12px;padding:8px;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
-.sb-logout:hover{border-color:var(--fail);color:var(--fail)}
+.sidebar{width:224px;flex-shrink:0;background:var(--ink);border-right:1px solid var(--parch-a08);display:flex;flex-direction:column;padding:22px 16px}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:4px 4px 22px}
+.sb-seal{width:34px;height:34px}
+.sb-seal .seal-mono{font-size:11px}
+.sb-brand-txt{font-family:'Quicksand',sans-serif;font-weight:700;font-size:16px;color:var(--parch);letter-spacing:.03em}
+.sb-nav{display:flex;flex-direction:column;gap:2px;flex:1;margin-top:6px}
+.sb-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:4px;color:var(--parch-a55);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;position:relative;letter-spacing:.02em}
+.sb-item i{font-size:16px;width:18px;text-align:center}
+.sb-item:hover{background:var(--parch-a08);color:var(--parch)}
+.sb-item.active{background:var(--wine-a40);color:var(--parch)}
+.sb-item.active::before{content:'';position:absolute;left:-16px;top:6px;bottom:6px;width:2px;border-radius:2px;background:var(--crimson)}
+.sb-foot{border-top:1px solid var(--parch-a08);padding-top:14px;margin-top:10px}
+.sb-user{display:flex;align-items:center;gap:9px;padding:8px 4px}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--wine-a40);border:1px solid var(--parch-a15);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--parch);flex-shrink:0}
+.sb-uname{font-size:12.5px;font-weight:700;color:var(--parch);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-urole{font-size:10px;color:var(--parch-a55);letter-spacing:.08em;text-transform:uppercase}
+.sb-logout{width:100%;margin-top:10px;background:transparent;border:1px solid var(--parch-a15);color:var(--parch-a55);font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:9px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.sb-logout:hover{border-color:var(--crimson);color:var(--parch)}
 
-.main{flex:1;min-width:0;display:flex;flex-direction:column;height:100vh;overflow:hidden}
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--bord);flex-shrink:0}
-.tb-title{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;color:var(--wh)}
-.tb-sub{font-size:12px;color:var(--mut);margin-top:2px}
-.menu-btn{display:none;background:var(--card);border:1px solid var(--bord);color:var(--txt);width:34px;height:34px;border-radius:8px;align-items:center;justify-content:center;cursor:pointer}
-.content{flex:1;overflow-y:auto;padding:24px 28px 60px}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;height:100vh;overflow:hidden;background:var(--parch)}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 32px;border-bottom:1px solid var(--ink-a15);flex-shrink:0;background:var(--parch)}
+.tb-title{font-family:'Quicksand',sans-serif;font-size:21px;font-weight:700;color:var(--ink);letter-spacing:.01em}
+.tb-sub{font-size:11.5px;color:var(--ink-a65);margin-top:2px;letter-spacing:.03em}
+.menu-btn{display:none;background:var(--ink);border:none;color:var(--parch);width:34px;height:34px;border-radius:4px;align-items:center;justify-content:center;cursor:pointer}
+.content{flex:1;overflow-y:auto;padding:28px 32px 64px}
 
-.card{background:var(--card2);border:1px solid var(--bord);border-radius:14px;padding:20px}
-.card-h{font-size:15px;font-weight:700;color:var(--wh);display:flex;align-items:center;gap:8px;margin-bottom:3px}
-.card-sub{font-size:12px;color:var(--mut);margin-bottom:16px}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.stat{background:var(--card2);border:1px solid var(--bord);border-radius:12px;padding:16px 18px}
-.stat b{display:block;font-family:'Syne',sans-serif;font-size:24px;color:var(--wh)}
-.stat span{font-size:11.5px;color:var(--mut)}
+.card{background:var(--parch);border:1px solid var(--ink-a15);border-radius:6px;padding:22px;box-shadow:0 2px 0 var(--ink-a08)}
+.card-h{font-family:'Quicksand',sans-serif;font-size:15.5px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px;margin-bottom:3px;letter-spacing:.01em}
+.card-sub{font-size:11.5px;color:var(--ink-a65);margin-bottom:18px;letter-spacing:.02em}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.stat{background:var(--ink);border-radius:6px;padding:18px 20px}
+.stat b{display:block;font-family:'Quicksand',sans-serif;font-size:26px;color:var(--parch);font-weight:700}
+.stat span{font-size:10.5px;color:var(--parch-a55);letter-spacing:.1em;text-transform:uppercase}
 
-.upload-box{border:1.5px dashed var(--bord);border-radius:12px;padding:26px 14px;text-align:center;cursor:pointer;transition:border-color .15s;position:relative}
-.upload-box:hover{border-color:var(--brand)}
-.upload-box i{font-size:22px;color:var(--mut)}
-.upload-box .ut{font-size:13px;color:var(--txt);margin-top:8px}
-.upload-box .us{font-size:11px;color:var(--mut);margin-top:3px}
-.upload-box.filled{border-style:solid;border-color:var(--pass);background:var(--pass-l)}
-.upload-box.filled .ut{color:var(--pass)}
+.upload-box{border:1.5px dashed var(--ink-a40);border-radius:6px;padding:28px 14px;text-align:center;cursor:pointer;transition:all .15s;position:relative;background:var(--ink-a08)}
+.upload-box:hover{border-color:var(--crimson)}
+.upload-box i{font-size:21px;color:var(--ink-a65)}
+.upload-box .ut{font-size:12.5px;color:var(--ink);margin-top:9px;font-weight:600}
+.upload-box .us{font-size:10.5px;color:var(--ink-a65);margin-top:3px;letter-spacing:.04em}
+.upload-box.filled{border-style:solid;border-color:var(--crimson);background:var(--crim-a10)}
+.upload-box.filled .ut{color:var(--crimson)}
 
-textarea.inp{resize:vertical;min-height:88px;line-height:1.5;font-size:13px}
-.chip-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
-.chip{font-size:11px;background:var(--card);border:1px solid var(--bord);color:var(--mut);padding:5px 10px;border-radius:20px;cursor:pointer}
-.chip:hover{border-color:#22b35e;color:#22b35e}
+textarea.inp{resize:vertical;min-height:88px;line-height:1.55;font-size:13px}
+.chip-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.chip{font-size:10.5px;background:transparent;border:1px solid var(--ink-a40);color:var(--ink-a65);padding:6px 11px;border-radius:20px;cursor:pointer;font-weight:600;letter-spacing:.02em}
+.chip:hover{border-color:var(--crimson);color:var(--crimson)}
 
-.badge{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:20px;display:inline-block}
-.badge.g{background:var(--pass-l);color:var(--pass)}
-.badge.r{background:var(--fail-l);color:var(--fail)}
-.badge.n{background:rgba(255,255,255,.06);color:var(--mut)}
+.badge{font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;letter-spacing:.08em;text-transform:uppercase}
+.badge.g{background:var(--parch);color:var(--ink);border:1.5px solid var(--ink)}
+.badge.r{background:var(--crimson);color:var(--parch)}
+.badge.n{background:var(--ink-a08);color:var(--ink-a65)}
 
-.row{display:flex;align-items:center;justify-content:space-between;padding:12px 4px;border-bottom:1px solid var(--bord)}
+.row{display:flex;align-items:center;justify-content:space-between;padding:13px 4px;border-bottom:1px solid var(--ink-a15)}
 .row:last-child{border-bottom:none}
-.row-name{font-size:13.5px;font-weight:600;color:var(--wh)}
-.row-sub{font-size:11.5px;color:var(--mut);margin-top:2px}
+.row-name{font-size:13.5px;font-weight:700;color:var(--ink)}
+.row-sub{font-size:11px;color:var(--ink-a65);margin-top:2px;letter-spacing:.02em}
 
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
-.modal{background:var(--surf);border:1px solid var(--bord);border-radius:14px;padding:24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto}
-.modal-h{font-size:16px;font-weight:700;color:var(--wh);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
-.modal-close{cursor:pointer;color:var(--mut);font-size:20px}
+.modal-bg{position:fixed;inset:0;background:var(--ink-a65);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+.modal{background:var(--parch);border-radius:6px;padding:26px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;border:1px solid var(--wine-a40)}
+.modal-h{font-family:'Quicksand',sans-serif;font-size:16px;font-weight:700;color:var(--ink);margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
+.modal-close{cursor:pointer;color:var(--ink-a65);font-size:18px}
 
-.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--card);border:1px solid var(--bord);border-left:3px solid var(--pass);color:var(--wh);padding:12px 18px;border-radius:9px;font-size:13px;z-index:200;transition:transform .25s;max-width:90vw}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--ink);border:1px solid var(--parch-a15);border-left:3px solid var(--crimson);color:var(--parch);padding:13px 20px;border-radius:5px;font-size:13px;z-index:200;transition:transform .25s;max-width:90vw;font-weight:600}
 .toast.show{transform:translateX(-50%) translateY(0)}
-.toast.err{border-left-color:var(--fail)}
+.toast.err{border-left-color:var(--crimson)}
 
-.spin{width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
+.spin{width:15px;height:15px;border:2px solid var(--parch-a30);border-top-color:var(--parch);border-radius:50%;animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 
-.result-score{font-family:'Syne',sans-serif;font-size:38px;font-weight:800;color:var(--wh)}
-.qrow{background:var(--card);border:1px solid var(--bord);border-radius:10px;padding:12px 14px;margin-bottom:8px}
-.qrow-top{display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:var(--wh)}
-.qrow-fb{font-size:12px;color:var(--mut);margin-top:5px;line-height:1.5}
+/* result certificate */
+.cert{background:var(--ink);border-radius:6px;padding:26px;position:relative;overflow:hidden}
+.cert::before{content:'';position:absolute;inset:8px;border:1px solid var(--parch-a15);border-radius:3px;pointer-events:none}
+.cert-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.cert-meta-label{font-size:9.5px;color:var(--parch-a55);letter-spacing:.12em;text-transform:uppercase}
+.cert-meta-val{font-size:13px;color:var(--parch);font-weight:700;margin-top:2px}
+.cert-seal{width:84px;height:84px;flex-shrink:0}
+.cert-seal .seal-mono{font-size:13px;line-height:1.1;text-align:center}
+.cert-score{font-family:'Quicksand',sans-serif;font-size:22px;font-weight:700;color:var(--parch)}
+.cert-score span{font-size:12px;color:var(--parch-a55);font-weight:600}
+.qrow{background:var(--parch-a08);border:1px solid var(--parch-a15);border-radius:5px;padding:13px 15px;margin-bottom:8px}
+.qrow-top{display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:var(--parch)}
+.qrow-fb{font-size:12px;color:var(--parch-a55);margin-top:5px;line-height:1.55}
 
-.cam-video{width:100%;border-radius:10px;background:#000}
+.cam-video{width:100%;border-radius:6px;background:#000}
 .cam-actions{display:flex;gap:10px;margin-top:12px}
 
 @media(max-width:860px){
   .grid3{grid-template-columns:1fr}
   .grid2{grid-template-columns:1fr}
-  .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:90;transform:translateX(-100%);transition:transform .2s;box-shadow:0 0 40px rgba(0,0,0,.5)}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:90;transform:translateX(-100%);transition:transform .2s;box-shadow:0 0 40px var(--ink-a65)}
   .sidebar.open{transform:translateX(0)}
   .menu-btn{display:flex}
-  .content{padding:18px 16px 60px}
-  .topbar{padding:14px 16px}
+  .content{padding:20px 18px 64px}
+  .topbar{padding:16px 18px}
+  .cert-head{flex-direction:column}
 }
 </style>
 <script src="config.js"></script>
@@ -145,13 +168,12 @@ textarea.inp{resize:vertical;min-height:88px;line-height:1.5;font-size:13px}
 
 <div id="login-screen" class="login-wrap">
   <div class="login-card">
-    <div class="brand"><span class="dot"></span>ScanGrade</div>
-    <div class="login-sub">Sign in to continue</div>
-    <div class="role-tabs" id="role-tabs">
-      <div class="role-tab active" data-role="admin"><i class="ti ti-shield"></i>Admin</div>
-      <div class="role-tab" data-role="teacher"><i class="ti ti-teacher"></i>Teacher</div>
-      <div class="role-tab" data-role="student"><i class="ti ti-school"></i>Student</div>
+    <div class="login-seal-wrap">
+      <div class="seal login-seal"><span class="seal-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M5.5 8.5c-1.2.6-2 1.6-2 3 0 1.6 1.1 2.8 2.6 3.2-.2.5-.3 1-.3 1.6 0 1.7 1.4 3 3.2 3 .6 0 1.1-.1 1.6-.4.6.9 1.6 1.4 2.7 1.4"/><path d="M18.5 8.5c1.2.6 2 1.6 2 3 0 1.6-1.1 2.8-2.6 3.2.2.5.3 1 .3 1.6 0 1.7-1.4 3-3.2 3-.6 0-1.1-.1-1.6-.4"/></svg></span></div>
     </div>
+    <div class="brand">ScanGrade</div>
+    <div class="brand-rule"></div>
+    <div class="login-sub">Sign in to your account</div>
     <div class="fi">
       <label class="fl">Email address</label>
       <input class="inp" id="login-email" type="email" placeholder="you@example.com" autocomplete="username">
@@ -159,18 +181,21 @@ textarea.inp{resize:vertical;min-height:88px;line-height:1.5;font-size:13px}
     <div class="fi">
       <label class="fl">Password</label>
       <div class="pwd-wrap">
-        <input class="inp" id="login-pwd" type="password" placeholder="Enter your password" autocomplete="current-password" style="padding-right:38px">
+        <input class="inp" id="login-pwd" type="password" placeholder="Enter your password" autocomplete="current-password" style="padding-right:30px">
         <i class="ti ti-eye pwd-eye" id="login-pwd-eye"></i>
       </div>
     </div>
-    <button class="btn" id="login-btn"><i class="ti ti-login-2"></i>Sign in</button>
+    <button class="btn" id="login-btn" style="margin-top:8px"><i class="ti ti-login-2"></i>Sign In</button>
     <div class="errmsg" id="login-err"></div>
   </div>
 </div>
 
 <div class="app" id="app">
   <div class="sidebar" id="sidebar">
-    <div class="sb-brand"><span class="dot"></span>ScanGrade</div>
+    <div class="sb-brand">
+      <div class="seal sb-seal"><span class="seal-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M5.5 8.5c-1.2.6-2 1.6-2 3 0 1.6 1.1 2.8 2.6 3.2-.2.5-.3 1-.3 1.6 0 1.7 1.4 3 3.2 3 .6 0 1.1-.1 1.6-.4.6.9 1.6 1.4 2.7 1.4"/><path d="M18.5 8.5c1.2.6 2 1.6 2 3 0 1.6-1.1 2.8-2.6 3.2.2.5.3 1 .3 1.6 0 1.7-1.4 3-3.2 3-.6 0-1.1-.1-1.6-.4"/></svg></span></div>
+      <div class="sb-brand-txt">ScanGrade</div>
+    </div>
     <div class="sb-nav" id="sb-nav"></div>
     <div class="sb-foot">
       <div class="sb-user">
@@ -180,7 +205,7 @@ textarea.inp{resize:vertical;min-height:88px;line-height:1.5;font-size:13px}
           <div class="sb-urole" id="sb-urole">—</div>
         </div>
       </div>
-      <button class="sb-logout" id="logout-btn"><i class="ti ti-logout"></i>Sign out</button>
+      <button class="sb-logout" id="logout-btn"><i class="ti ti-logout"></i>Sign Out</button>
     </div>
   </div>
   <div class="main">
@@ -253,7 +278,6 @@ if (location.protocol === 'https:' && API_BASE.startsWith('http://')) {
 }
 let authToken = localStorage.getItem('sg_token') || null;
 let currentUser = JSON.parse(localStorage.getItem('sg_user') || 'null');
-let selectedRole = 'admin';
 
 async function api(path, opts = {}) {
   const headers = opts.headers || {};
@@ -280,15 +304,8 @@ function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;',
 function fmtTime(ts){ return new Date(ts).toLocaleString(); }
 
 /* ============================================================
-   LOGIN
+   LOGIN — single form, role comes back from the account itself
    ============================================================ */
-document.querySelectorAll('.role-tab').forEach(tab=>{
-  tab.addEventListener('click', ()=>{
-    document.querySelectorAll('.role-tab').forEach(t=>t.classList.remove('active'));
-    tab.classList.add('active');
-    selectedRole = tab.dataset.role;
-  });
-});
 document.getElementById('login-pwd-eye').addEventListener('click', ()=>{
   const f = document.getElementById('login-pwd');
   const eye = document.getElementById('login-pwd-eye');
@@ -308,9 +325,9 @@ async function doLogin(){
   const btn = document.getElementById('login-btn');
   if(!email || !password){ errEl.textContent = 'Enter your email and password.'; return; }
 
-  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Signing in...';
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Signing In…';
   try{
-    const data = await api('/auth/login', { method:'POST', body: JSON.stringify({email, password, role: selectedRole}) });
+    const data = await api('/auth/login', { method:'POST', body: JSON.stringify({email, password}) });
     authToken = data.token; currentUser = data.user;
     localStorage.setItem('sg_token', authToken);
     localStorage.setItem('sg_user', JSON.stringify(currentUser));
@@ -318,7 +335,7 @@ async function doLogin(){
   }catch(e){
     errEl.textContent = e.message;
   }finally{
-    btn.disabled = false; btn.innerHTML = '<i class="ti ti-login-2"></i>Sign in';
+    btn.disabled = false; btn.innerHTML = '<i class="ti ti-login-2"></i>Sign In';
   }
 }
 function doLogout(){
@@ -355,10 +372,10 @@ const NAV = {
   ]
 };
 const TITLES = {
-  overview:['Overview','Platform summary'], teachers:['Teachers','Manage teacher accounts'],
-  security:['Security','Login activity across the platform'], settings:['Settings','Account preferences'],
-  grade:['Grade Exam','Upload sheets and grade with AI'], students:['Students','Manage your student accounts'],
-  results:['My Results','Your graded exams']
+  overview:['Overview','Platform Summary'], teachers:['Teachers','Manage Teacher Accounts'],
+  security:['Security','Login Activity Across The Platform'], settings:['Settings','Account Preferences'],
+  grade:['Grade Exam','Upload Sheets And Grade With AI'], students:['Students','Manage Your Student Accounts'],
+  results:['My Results','Your Graded Exams']
 };
 
 function enterApp(){
@@ -384,7 +401,7 @@ async function navigate(view){
   document.getElementById('tb-title').textContent = TITLES[view][0];
   document.getElementById('tb-sub').textContent = TITLES[view][1];
   const content = document.getElementById('content');
-  content.innerHTML = '<div style="color:var(--mut);font-size:13px">Loading…</div>';
+  content.innerHTML = '<div style="color:var(--ink-a65);font-size:13px">Loading…</div>';
   const renderers = {
     overview: renderAdminOverview, teachers: renderAdminTeachers, security: renderAdminSecurity,
     grade: renderTeacherGrade, students: renderTeacherStudents,
@@ -393,7 +410,7 @@ async function navigate(view){
   try{ await renderers[view](); }
   catch(e){
     if(e.message.includes('Session expired') || e.message.includes('Not signed in')) doLogout();
-    else content.innerHTML = `<div class="card" style="color:var(--fail);font-size:13px">${esc(e.message)}</div>`;
+    else content.innerHTML = `<div class="card" style="color:var(--crimson);font-size:13px">${esc(e.message)}</div>`;
   }
 }
 
@@ -407,16 +424,16 @@ async function renderAdminOverview(){
     <div class="grid3" style="margin-bottom:20px">
       <div class="stat"><b>${teacherCount}</b><span>Teachers</span></div>
       <div class="stat"><b>${studentCount}</b><span>Students</span></div>
-      <div class="stat"><b>${failedRecent}</b><span>Failed logins (24h)</span></div>
+      <div class="stat"><b>${failedRecent}</b><span>Failed Logins (24h)</span></div>
     </div>
     <div class="card">
-      <div class="card-h"><i class="ti ti-clock"></i>Recent activity</div>
+      <div class="card-h"><i class="ti ti-clock"></i>Recent Activity</div>
       <div class="card-sub">Latest logins and account changes</div>
       <div id="ov-log">${recentLog.map(l=>`
         <div class="row">
           <div><div class="row-name">${esc(l.event)}</div><div class="row-sub">${esc(l.email||'')} · ${fmtTime(l.time)}</div></div>
           <span class="badge ${l.status==='ok'?'g':'r'}">${l.status==='ok'?'OK':'FAILED'}</span>
-        </div>`).join('') || '<div style="color:var(--mut);font-size:12.5px">No activity yet.</div>'}</div>
+        </div>`).join('') || '<div style="color:var(--ink-a65);font-size:12.5px">No activity yet.</div>'}</div>
     </div>`;
 }
 
@@ -425,20 +442,20 @@ async function renderAdminTeachers(){
   const content = document.getElementById('content');
   content.innerHTML = `
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
-      <button class="btn" style="width:auto;padding:10px 18px" id="add-teacher-btn"><i class="ti ti-plus"></i>Add teacher</button>
+      <button class="btn" style="width:auto;padding:11px 20px" id="add-teacher-btn"><i class="ti ti-plus"></i>Add Teacher</button>
     </div>
     <div id="teacher-list" style="display:flex;flex-direction:column;gap:12px"></div>`;
   document.getElementById('add-teacher-btn').addEventListener('click', openAddTeacherModal);
   const list = document.getElementById('teacher-list');
   if(teachers.length===0){
-    list.innerHTML = '<div class="card" style="text-align:center;color:var(--mut);font-size:13px">No teachers yet. Add one to get started.</div>';
+    list.innerHTML = '<div class="card" style="text-align:center;color:var(--ink-a65);font-size:13px">No teachers yet. Add one to get started.</div>';
     return;
   }
   list.innerHTML = teachers.map(t=>`
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div style="display:flex;gap:12px;align-items:center">
-          <div class="avatar">${initials(t.name)}</div>
+          <div class="avatar" style="background:var(--ink);color:var(--parch)">${initials(t.name)}</div>
           <div><div class="row-name">${esc(t.name)}</div><div class="row-sub">${esc(t.email)} ${t.subject?'· '+esc(t.subject):''}</div></div>
         </div>
         <div style="text-align:right">
@@ -447,19 +464,19 @@ async function renderAdminTeachers(){
         </div>
       </div>
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="chip toggle-students-btn" data-email="${esc(t.email)}">View students</button>
-        <button class="chip toggle-status-btn" data-email="${esc(t.email)}" data-status="${t.status||'active'}">${t.status==='disabled'?'Enable account':'Disable account'}</button>
-        <button class="chip reset-pwd-btn" data-scope="teacher" data-email="${esc(t.email)}" data-name="${esc(t.name)}">Reset password</button>
-        <button class="chip delete-teacher-btn" data-email="${esc(t.email)}" data-name="${esc(t.name)}" data-count="${t.students.length}" style="color:var(--fail);border-color:var(--fail-l)">Delete account</button>
+        <button class="chip toggle-students-btn" data-email="${esc(t.email)}">View Students</button>
+        <button class="chip toggle-status-btn" data-email="${esc(t.email)}" data-status="${t.status||'active'}">${t.status==='disabled'?'Enable Account':'Disable Account'}</button>
+        <button class="chip reset-pwd-btn" data-scope="teacher" data-email="${esc(t.email)}" data-name="${esc(t.name)}">Reset Password</button>
+        <button class="chip delete-teacher-btn" data-email="${esc(t.email)}" data-name="${esc(t.name)}" data-count="${t.students.length}" style="color:var(--crimson);border-color:var(--crim-a35)">Delete Account</button>
       </div>
-      <div class="student-sub-list hidden" id="students-of-${btoa(t.email).replace(/=/g,'')}" style="margin-top:12px;border-top:1px solid var(--bord);padding-top:10px">
-        ${t.students.length===0 ? '<div style="color:var(--mut);font-size:12px">No students added yet.</div>' :
+      <div class="student-sub-list hidden" id="students-of-${btoa(t.email).replace(/=/g,'')}" style="margin-top:12px;border-top:1px solid var(--ink-a15);padding-top:10px">
+        ${t.students.length===0 ? '<div style="color:var(--ink-a65);font-size:12px">No students added yet.</div>' :
           t.students.map(s=>`
           <div class="row">
             <div><div class="row-name">${esc(s.name)}</div><div class="row-sub">${esc(s.email)} · Roll ${esc(s.rollNo||'—')}</div></div>
             <div style="display:flex;align-items:center;gap:8px">
               <span class="badge n">${esc(s.studyLevel||'—')}</span>
-              <button class="chip reset-pwd-btn" data-scope="student" data-email="${esc(s.email)}" data-name="${esc(s.name)}" style="padding:4px 9px">Reset password</button>
+              <button class="chip reset-pwd-btn" data-scope="student" data-email="${esc(s.email)}" data-name="${esc(s.name)}" style="padding:4px 9px">Reset Password</button>
             </div>
           </div>`).join('')}
       </div>
@@ -505,10 +522,10 @@ function openResetPasswordModal(name, onConfirm){
   bg.className = 'modal-bg';
   bg.innerHTML = `
     <div class="modal">
-      <div class="modal-h">Reset password for ${esc(name)} <i class="ti ti-x modal-close" id="close-modal"></i></div>
-      <div class="fi"><label class="fl">New password</label><input class="inp" id="rp-pwd" type="text" placeholder="Minimum 8 characters"></div>
+      <div class="modal-h">Reset Password For ${esc(name)} <i class="ti ti-x modal-close" id="close-modal"></i></div>
+      <div class="fi"><label class="fl">New Password</label><input class="inp" id="rp-pwd" type="text" placeholder="Minimum 8 characters"></div>
       <div class="errmsg" id="rp-err"></div>
-      <button class="btn" id="rp-save"><i class="ti ti-check"></i>Set new password</button>
+      <button class="btn" id="rp-save"><i class="ti ti-check"></i>Set New Password</button>
     </div>`;
   document.body.appendChild(bg);
   bg.querySelector('#close-modal').addEventListener('click', ()=>bg.remove());
@@ -529,13 +546,13 @@ function openAddTeacherModal(){
   bg.className = 'modal-bg';
   bg.innerHTML = `
     <div class="modal">
-      <div class="modal-h">Add teacher <i class="ti ti-x modal-close" id="close-modal"></i></div>
-      <div class="fi"><label class="fl">Full name</label><input class="inp" id="nt-name" placeholder="e.g. Priya Venkataraman"></div>
-      <div class="fi"><label class="fl">Email address</label><input class="inp" id="nt-email" type="email" placeholder="teacher@example.com"></div>
-      <div class="fi"><label class="fl">Subject / department</label><input class="inp" id="nt-subject" placeholder="e.g. Computer Science"></div>
-      <div class="fi"><label class="fl">Temporary password</label><input class="inp" id="nt-pwd" type="text" placeholder="Minimum 8 characters"></div>
+      <div class="modal-h">Add Teacher <i class="ti ti-x modal-close" id="close-modal"></i></div>
+      <div class="fi"><label class="fl">Full Name</label><input class="inp" id="nt-name" placeholder="e.g. Priya Venkataraman"></div>
+      <div class="fi"><label class="fl">Email Address</label><input class="inp" id="nt-email" type="email" placeholder="teacher@example.com"></div>
+      <div class="fi"><label class="fl">Subject / Department</label><input class="inp" id="nt-subject" placeholder="e.g. Computer Science"></div>
+      <div class="fi"><label class="fl">Temporary Password</label><input class="inp" id="nt-pwd" type="text" placeholder="Minimum 8 characters"></div>
       <div class="errmsg" id="nt-err"></div>
-      <button class="btn" id="nt-save"><i class="ti ti-check"></i>Create teacher account</button>
+      <button class="btn" id="nt-save"><i class="ti ti-check"></i>Create Teacher Account</button>
     </div>`;
   document.body.appendChild(bg);
   bg.querySelector('#close-modal').addEventListener('click', ()=>bg.remove());
@@ -556,33 +573,34 @@ function openAddTeacherModal(){
     }catch(e){ err.textContent = e.message; }
   });
 }
-let securityShowAll = false;
 async function renderAdminSecurity(){
   const { log } = await api('/admin/security-log');
+  const content = document.getElementById('content');
   const twelveHoursAgo = Date.now() - 12*60*60*1000;
+  content.dataset.showAll = content.dataset.showAll || 'false';
+  const showAll = content.dataset.showAll === 'true';
   const recent = log.filter(l => l.time >= twelveHoursAgo);
-  const shown = securityShowAll ? log : recent;
+  const shown = showAll ? log : recent;
   const olderCount = log.length - recent.length;
-
-  document.getElementById('content').innerHTML = `
+  content.innerHTML = `
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
         <div>
-          <div class="card-h"><i class="ti ti-tool"></i>Login &amp; account activity</div>
-          <div class="card-sub" style="margin-bottom:0">${securityShowAll ? `All ${log.length} events` : `Last 12 hours (${recent.length} event${recent.length!==1?'s':''})`}, newest first</div>
+          <div class="card-h"><i class="ti ti-tool"></i>Login &amp; Account Activity</div>
+          <div class="card-sub" style="margin-bottom:0">${showAll ? `All ${log.length} events` : `Last 12 hours (${recent.length} event${recent.length!==1?'s':''})`}, newest first</div>
         </div>
-        ${olderCount > 0 ? `<button class="chip" id="sec-toggle-btn">${securityShowAll ? 'Show only last 12 hours' : `See all logs (${olderCount} more)`}</button>` : ''}
+        ${olderCount > 0 ? `<button class="chip" id="sec-toggle-btn">${showAll ? 'Show Only Last 12 Hours' : `See All Logs (${olderCount} more)`}</button>` : ''}
       </div>
       <div style="margin-top:14px">
       ${shown.map(l=>`
         <div class="row">
           <div><div class="row-name">${esc(l.event)}</div><div class="row-sub">${esc(l.email||'—')}${l.role?' · '+esc(l.role):''} · ${fmtTime(l.time)}</div></div>
           <span class="badge ${l.status==='ok'?'g':'r'}">${l.status==='ok'?'OK':'FAILED'}</span>
-        </div>`).join('') || '<div style="color:var(--mut);font-size:12.5px">No events in this window.</div>'}
+        </div>`).join('') || '<div style="color:var(--ink-a65);font-size:12.5px">No events in this window.</div>'}
       </div>
     </div>`;
   const toggleBtn = document.getElementById('sec-toggle-btn');
-  if(toggleBtn) toggleBtn.addEventListener('click', ()=>{ securityShowAll = !securityShowAll; renderAdminSecurity(); });
+  if(toggleBtn) toggleBtn.addEventListener('click', ()=>{ content.dataset.showAll = showAll ? 'false' : 'true'; renderAdminSecurity(); });
 }
 
 /* ============================================================
@@ -592,19 +610,19 @@ async function renderTeacherStudents(){
   const { students } = await api('/teacher/students');
   document.getElementById('content').innerHTML = `
     <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
-      <button class="btn" style="width:auto;padding:10px 18px" id="add-student-btn"><i class="ti ti-plus"></i>Add student</button>
+      <button class="btn" style="width:auto;padding:11px 20px" id="add-student-btn"><i class="ti ti-plus"></i>Add Student</button>
     </div>
     <div class="card">
-      <div class="card-h"><i class="ti ti-users"></i>Your students</div>
+      <div class="card-h"><i class="ti ti-users"></i>Your Students</div>
       <div class="card-sub">${students.length} student${students.length!==1?'s':''}</div>
-      ${students.length===0 ? '<div style="color:var(--mut);font-size:12.5px">No students yet.</div>' :
+      ${students.length===0 ? '<div style="color:var(--ink-a65);font-size:12.5px">No students yet.</div>' :
         students.map(s=>`
         <div class="row">
           <div><div class="row-name">${esc(s.name)}</div><div class="row-sub">${esc(s.email)} · Roll ${esc(s.rollNo||'—')}</div></div>
           <div style="display:flex;align-items:center;gap:8px">
             <span class="badge n">${esc(s.studyLevel||'—')}</span>
-            <button class="chip reset-student-pwd-btn" data-email="${esc(s.email)}" data-name="${esc(s.name)}" style="padding:4px 9px">Reset password</button>
-            <button class="delete-student-btn" data-email="${esc(s.email)}" data-name="${esc(s.name)}" title="Delete student" style="background:transparent;border:1px solid var(--fail-l);color:var(--fail);width:26px;height:26px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-x" style="font-size:13px"></i></button>
+            <button class="chip reset-student-pwd-btn" data-email="${esc(s.email)}" data-name="${esc(s.name)}" style="padding:4px 9px">Reset Password</button>
+            <button class="delete-student-btn" data-email="${esc(s.email)}" data-name="${esc(s.name)}" title="Delete student" style="background:transparent;border:1px solid var(--crim-a35);color:var(--crimson);width:26px;height:26px;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="ti ti-x" style="font-size:13px"></i></button>
           </div>
         </div>`).join('')}
     </div>`;
@@ -632,16 +650,16 @@ function openAddStudentModal(){
   bg.className = 'modal-bg';
   bg.innerHTML = `
     <div class="modal">
-      <div class="modal-h">Add student <i class="ti ti-x modal-close" id="close-modal"></i></div>
-      <div class="fi"><label class="fl">Full name</label><input class="inp" id="ns-name" placeholder="e.g. Arun Kumar"></div>
-      <div class="fi"><label class="fl">Email address</label><input class="inp" id="ns-email" type="email" placeholder="student@example.com"></div>
+      <div class="modal-h">Add Student <i class="ti ti-x modal-close" id="close-modal"></i></div>
+      <div class="fi"><label class="fl">Full Name</label><input class="inp" id="ns-name" placeholder="e.g. Arun Kumar"></div>
+      <div class="fi"><label class="fl">Email Address</label><input class="inp" id="ns-email" type="email" placeholder="student@example.com"></div>
       <div class="grid2">
-        <div class="fi"><label class="fl">Roll number</label><input class="inp" id="ns-roll" placeholder="e.g. 24CS041"></div>
-        <div class="fi"><label class="fl">Study level / class</label><input class="inp" id="ns-level" placeholder="e.g. II CSE"></div>
+        <div class="fi"><label class="fl">Roll Number</label><input class="inp" id="ns-roll" placeholder="e.g. 24CS041"></div>
+        <div class="fi"><label class="fl">Study Level / Class</label><input class="inp" id="ns-level" placeholder="e.g. II CSE"></div>
       </div>
-      <div class="fi"><label class="fl">Temporary password</label><input class="inp" id="ns-pwd" type="text" placeholder="Minimum 8 characters"></div>
+      <div class="fi"><label class="fl">Temporary Password</label><input class="inp" id="ns-pwd" type="text" placeholder="Minimum 8 characters"></div>
       <div class="errmsg" id="ns-err"></div>
-      <button class="btn" id="ns-save"><i class="ti ti-check"></i>Create student account</button>
+      <button class="btn" id="ns-save"><i class="ti ti-check"></i>Create Student Account</button>
     </div>`;
   document.body.appendChild(bg);
   bg.querySelector('#close-modal').addEventListener('click', ()=>bg.remove());
@@ -669,41 +687,49 @@ let gradeFiles = { qb:null, key:null, sheet:null }; // real File/Blob objects
 
 async function renderTeacherGrade(){
   document.getElementById('content').innerHTML = `
-    <div style="background:var(--grad-l);border:1px solid rgba(34,179,94,.28);border-radius:10px;padding:11px 14px;font-size:12.5px;color:var(--txt);margin-bottom:18px;display:flex;gap:9px;align-items:flex-start">
-      <i class="ti ti-language" style="color:#22b35e;margin-top:1px"></i>
-      <span>Tamil handwriting supported — the grader can read and evaluate Tamil script answers. Upload answer sheets as images or PDF.</span>
+    <div style="background:var(--crim-a10);border:1px solid var(--crim-a35);border-radius:6px;padding:12px 15px;font-size:12.5px;color:var(--ink);margin-bottom:18px;display:flex;gap:9px;align-items:flex-start">
+      <i class="ti ti-language" style="color:var(--crimson);margin-top:1px"></i>
+      <span>Tamil handwriting supported — the grader reads and evaluates Tamil script answers. Upload sheets as images or PDF. Grading uses zero temperature for consistent, repeatable results on the same input.</span>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-h"><i class="ti ti-file-text"></i>Exam Details</div>
+      <div class="card-sub">Recorded on the graded certificate</div>
+      <div class="grid2">
+        <div class="fi"><label class="fl">Student Name</label><input class="inp" id="grade-name" placeholder="e.g. Arun Kumar"></div>
+        <div class="fi"><label class="fl">Roll Number</label><input class="inp" id="grade-roll" placeholder="e.g. 24CS041"></div>
+      </div>
+      <div class="grid2">
+        <div class="fi"><label class="fl">Subject</label><input class="inp" id="grade-subject" placeholder="e.g. Digital Forensics"></div>
+        <div class="fi"><label class="fl">Exam Type</label><input class="inp" id="grade-examtype" placeholder="e.g. Mid-Term, Final, Quiz"></div>
+      </div>
     </div>
     <div class="grid3">
       <div>
-        <div class="upload-box" id="box-qb"><i class="ti ti-file-text"></i><div class="ut">Question bank</div><div class="us">PDF, JPG or PNG</div></div>
+        <div class="upload-box" id="box-qb"><i class="ti ti-file-text"></i><div class="ut">Question Bank</div><div class="us">PDF, JPG or PNG</div></div>
         <input type="file" id="file-qb" accept=".pdf,.jpg,.jpeg,.png" class="hidden">
       </div>
       <div>
-        <div class="upload-box" id="box-key"><i class="ti ti-key"></i><div class="ut">Answer key</div><div class="us">PDF, JPG or PNG</div></div>
+        <div class="upload-box" id="box-key"><i class="ti ti-key"></i><div class="ut">Answer Key</div><div class="us">PDF, JPG or PNG</div></div>
         <input type="file" id="file-key" accept=".pdf,.jpg,.jpeg,.png" class="hidden">
       </div>
       <div>
-        <div class="upload-box" id="box-sheet"><i class="ti ti-scan"></i><div class="ut">Answer sheet</div><div class="us">PDF, JPG or PNG</div></div>
+        <div class="upload-box" id="box-sheet"><i class="ti ti-scan"></i><div class="ut">Answer Sheet</div><div class="us">PDF, JPG or PNG</div></div>
         <input type="file" id="file-sheet" accept=".pdf,.jpg,.jpeg,.png" class="hidden">
-        <button class="btn-outline" id="cam-btn" style="margin-top:8px"><i class="ti ti-camera"></i>Capture with camera</button>
+        <button class="btn-outline" id="cam-btn" style="margin-top:8px"><i class="ti ti-camera"></i>Capture With Camera</button>
       </div>
     </div>
     <div class="card" style="margin-top:18px">
-      <div class="card-h"><i class="ti ti-sparkles"></i>Grading instructions</div>
+      <div class="card-h"><i class="ti ti-sparkles"></i>Grading Instructions</div>
       <div class="card-sub">Tell the grader how to score this exam</div>
       <textarea class="inp" id="grade-instructions" placeholder="e.g. Award partial marks for correct method even if the final answer is wrong. Accept Tamil or English answers."></textarea>
       <div class="chip-row">
-        <div class="chip" data-t="Award partial marks for correct method even if the final answer is wrong.">Partial credit</div>
+        <div class="chip" data-t="Award partial marks for correct method even if the final answer is wrong.">Partial Credit</div>
         <div class="chip" data-t="Accept Tamil or English answers — do not penalize for language choice.">Accept Tamil/English</div>
-        <div class="chip" data-t="Deduct 0.5 marks for missing units in numerical answers.">Deduct for missing units</div>
-        <div class="chip" data-t="For essay questions, grade based on coverage of key points and clarity of explanation.">Essay grading</div>
+        <div class="chip" data-t="Deduct 0.5 marks for missing units in numerical answers.">Deduct For Missing Units</div>
+        <div class="chip" data-t="For essay questions, grade based on coverage of key points and clarity of explanation.">Essay Grading</div>
       </div>
     </div>
-    <div class="grid2" style="margin-top:14px">
-      <div class="fi"><label class="fl">Student roll number (to save this result)</label><input class="inp" id="grade-roll" placeholder="e.g. 24CS041"></div>
-      <div class="fi"><label class="fl">Subject</label><input class="inp" id="grade-subject" placeholder="e.g. Digital Forensics"></div>
-    </div>
-    <button class="btn" id="grade-btn" style="margin-top:8px;width:auto;padding:12px 26px"><i class="ti ti-sparkles"></i>Grade with AI</button>
+    <button class="btn" id="grade-btn" style="margin-top:16px;width:auto;padding:13px 28px"><i class="ti ti-sparkles"></i>Grade With AI</button>
     <div id="grade-result" style="margin-top:22px"></div>`;
 
   setupUploadBox('box-qb','file-qb','qb');
@@ -718,18 +744,48 @@ async function renderTeacherGrade(){
   });
   document.getElementById('grade-btn').addEventListener('click', runGrading);
 }
+// Large phone photos (often 8-15MB, 4000px+ wide) are the usual cause of upload
+// timeouts on a slow connection. This resizes to a sane max dimension and re-encodes
+// as JPEG before it ever leaves the browser — the AI reads handwriting fine well
+// below original camera resolution, so this cuts upload size dramatically with no
+// real loss in grading accuracy. PDFs pass through untouched (compressing those
+// properly needs a different approach, not just a canvas resize).
+async function compressImageFile(file, maxDim = 1800, quality = 0.82) {
+  if (file.type === 'application/pdf') return file;
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) return file; // fall back to original if decoding fails for any reason
+
+  let { width, height } = bitmap;
+  if (width > maxDim || height > maxDim) {
+    const scale = maxDim / Math.max(width, height);
+    width = Math.round(width * scale);
+    height = Math.round(height * scale);
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, width, height);
+
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+  if (!blob || blob.size >= file.size) return file; // keep original if compression didn't actually help
+  return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+}
+
 function setupUploadBox(boxId, inputId, kind){
   const box = document.getElementById(boxId);
   const input = document.getElementById(inputId);
   box.addEventListener('click', ()=>input.click());
-  input.addEventListener('change', ()=>{
+  input.addEventListener('change', async ()=>{
     const f = input.files[0];
     if(!f) return;
     if(f.size > 15*1024*1024){ showToast('File too large (max 15MB)', true); return; }
-    gradeFiles[kind] = f;
+    box.querySelector('.ut').textContent = 'Compressing…';
+    box.querySelector('.us').textContent = 'Please wait';
+    const compressed = await compressImageFile(f);
+    gradeFiles[kind] = compressed;
     box.classList.add('filled');
     box.querySelector('.ut').textContent = f.name.length>22 ? f.name.slice(0,20)+'…' : f.name;
-    box.querySelector('.us').textContent = 'Ready';
+    const savedPct = f.size > compressed.size ? Math.round((1 - compressed.size/f.size) * 100) : 0;
+    box.querySelector('.us').textContent = savedPct > 5 ? `Ready · ${savedPct}% smaller` : 'Ready';
   });
 }
 let camStream = null;
@@ -738,7 +794,7 @@ function openCameraModal(){
   bg.className = 'modal-bg';
   bg.innerHTML = `
     <div class="modal">
-      <div class="modal-h">Capture answer sheet <i class="ti ti-x modal-close" id="cam-close"></i></div>
+      <div class="modal-h">Capture Answer Sheet <i class="ti ti-x modal-close" id="cam-close"></i></div>
       <video id="cam-video" class="cam-video" autoplay playsinline></video>
       <div class="cam-actions">
         <button class="btn" id="cam-shoot"><i class="ti ti-camera"></i>Capture</button>
@@ -755,14 +811,18 @@ function openCameraModal(){
   bg.querySelector('#cam-close').addEventListener('click', closeCam);
   bg.querySelector('#cam-cancel').addEventListener('click', closeCam);
   bg.querySelector('#cam-shoot').addEventListener('click', ()=>{
+    // Capture at native resolution, then run through the same compression path
+    // as file uploads — phone camera streams can be very high-res.
     const canvas = document.getElementById('cam-canvas');
     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     canvas.getContext('2d').drawImage(video, 0, 0);
-    canvas.toBlob(blob=>{
-      gradeFiles.sheet = new File([blob], 'camera-capture.jpg', {type:'image/jpeg'});
+    canvas.toBlob(async blob=>{
+      const raw = new File([blob], 'camera-capture.jpg', {type:'image/jpeg'});
+      const compressed = await compressImageFile(raw);
+      gradeFiles.sheet = compressed;
       const box = document.getElementById('box-sheet');
       box.classList.add('filled');
-      box.querySelector('.ut').textContent = 'Camera capture';
+      box.querySelector('.ut').textContent = 'Camera Capture';
       box.querySelector('.us').textContent = 'Ready';
       showToast('Answer sheet captured');
     }, 'image/jpeg', 0.92);
@@ -775,10 +835,12 @@ async function runGrading(){
   if(!gradeFiles.sheet){ showToast('Upload or capture the answer sheet first', true); return; }
   const instructions = document.getElementById('grade-instructions').value.trim();
   const roll = document.getElementById('grade-roll').value.trim();
+  const studentName = document.getElementById('grade-name').value.trim();
   const subject = document.getElementById('grade-subject').value.trim() || 'Exam';
+  const examType = document.getElementById('grade-examtype').value.trim();
 
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Grading…';
-  resultBox.innerHTML = '<div class="card" style="text-align:center;color:var(--mut);font-size:13px">Reading the answer sheet and comparing against the answer key…</div>';
+  resultBox.innerHTML = '<div class="card" style="text-align:center;color:var(--ink-a65);font-size:13px">Reading the answer sheet and comparing against the answer key…</div>';
   try{
     const form = new FormData();
     if(gradeFiles.qb) form.append('qb', gradeFiles.qb);
@@ -787,30 +849,43 @@ async function runGrading(){
     form.append('instructions', instructions);
     form.append('subject', subject);
     form.append('rollNo', roll);
+    form.append('studentName', studentName);
+    form.append('examType', examType);
     const { result } = await api('/grade', { method:'POST', body: form });
-    renderGradeResult(result, subject);
+    renderGradeResult(result, { subject, examType, studentName, rollNo: roll });
     if(roll) showToast('Result saved for roll '+roll.toUpperCase());
   }catch(e){
-    resultBox.innerHTML = `<div class="card" style="color:var(--fail);font-size:13px">Could not grade this sheet: ${esc(e.message)}</div>`;
+    resultBox.innerHTML = `<div class="card" style="color:var(--crimson);font-size:13px">Could not grade this sheet: ${esc(e.message)}</div>`;
   }finally{
-    btn.disabled = false; btn.innerHTML = '<i class="ti ti-sparkles"></i>Grade with AI';
+    btn.disabled = false; btn.innerHTML = '<i class="ti ti-sparkles"></i>Grade With AI';
   }
 }
-function renderGradeResult(r, subject){
+function certHTML(r, meta){
   const pct = r.totalMarks ? Math.round((r.totalObtained/r.totalMarks)*100) : 0;
   const qHtml = (r.questions||[]).map(q=>`
-    <div class="qrow"><div class="qrow-top"><span>Q${esc(q.qNo)}</span><span>${q.obtained}/${q.outOf}</span></div><div class="qrow-fb">${esc(q.feedback||'')}</div></div>`).join('');
-  document.getElementById('grade-result').innerHTML = `
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
-        <div><div class="card-h" style="margin-bottom:2px">${esc(subject)}</div><div class="card-sub" style="margin-bottom:0">${esc(r.overallFeedback||'')}</div></div>
+    <div class="qrow"><div class="qrow-top"><span>Question ${esc(q.qNo)}</span><span>${q.obtained}/${q.outOf}</span></div><div class="qrow-fb">${esc(q.feedback||'')}</div></div>`).join('');
+  const metaRow = (label, val) => val ? `<div><div class="cert-meta-label">${label}</div><div class="cert-meta-val">${esc(val)}</div></div>` : '';
+  return `
+    <div class="cert">
+      <div class="cert-head">
+        <div class="seal cert-seal"><span class="seal-mono">${pct}%</span></div>
+        <div style="display:flex;gap:26px;flex-wrap:wrap">
+          ${metaRow('Student', meta.studentName)}
+          ${metaRow('Roll No.', meta.rollNo)}
+          ${metaRow('Subject', meta.subject)}
+          ${metaRow('Exam Type', meta.examType)}
+        </div>
         <div style="text-align:right">
-          <div class="result-score">${r.totalObtained}<span style="font-size:18px;color:var(--mut)">/${r.totalMarks}</span></div>
-          <span class="badge ${r.passed?'g':'r'}">${r.passed?'PASS':'FAIL'} · ${pct}%</span>
+          <div class="cert-score">${r.totalObtained}<span>/${r.totalMarks}</span></div>
+          <span class="badge ${r.passed?'g':'r'}">${r.passed?'Pass':'Fail'}</span>
         </div>
       </div>
-      <div style="margin-top:16px">${qHtml}</div>
+      <div style="margin-top:16px;font-size:12.5px;color:var(--parch-a55);line-height:1.6">${esc(r.overallFeedback||'')}</div>
+      <div style="margin-top:18px">${qHtml}</div>
     </div>`;
+}
+function renderGradeResult(r, meta){
+  document.getElementById('grade-result').innerHTML = certHTML(r, meta);
 }
 
 /* ============================================================
@@ -819,22 +894,10 @@ function renderGradeResult(r, subject){
 async function renderStudentResults(){
   const { results } = await api('/student/results');
   const content = document.getElementById('content');
-  if(results.length===0){ content.innerHTML = '<div class="card" style="text-align:center;color:var(--mut);font-size:13px">No graded results yet.</div>'; return; }
-  content.innerHTML = results.map(r=>{
-    const pct = r.totalMarks ? Math.round((r.totalObtained/r.totalMarks)*100) : 0;
-    const qHtml = (r.questions||[]).map(q=>`
-      <div class="qrow"><div class="qrow-top"><span>Q${esc(q.qNo)}</span><span>${q.obtained}/${q.outOf}</span></div><div class="qrow-fb">${esc(q.feedback||'')}</div></div>`).join('');
-    return `<div class="card" style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
-        <div><div class="card-h" style="margin-bottom:2px">${esc(r.subject)}</div><div class="card-sub" style="margin-bottom:0">${fmtTime(r.gradedAt)} · ${esc(r.overallFeedback||'')}</div></div>
-        <div style="text-align:right">
-          <div class="result-score">${r.totalObtained}<span style="font-size:16px;color:var(--mut)">/${r.totalMarks}</span></div>
-          <span class="badge ${r.passed?'g':'r'}">${r.passed?'PASS':'FAIL'} · ${pct}%</span>
-        </div>
-      </div>
-      <div style="margin-top:14px">${qHtml}</div>
-    </div>`;
-  }).join('');
+  if(results.length===0){ content.innerHTML = '<div class="card" style="text-align:center;color:var(--ink-a65);font-size:13px">No graded results yet.</div>'; return; }
+  content.innerHTML = results.map(r=>certHTML(r, {
+    subject: r.subject, examType: r.examType, studentName: r.studentName, rollNo: currentUser.rollNo
+  }) + `<div style="text-align:right;font-size:10.5px;color:var(--ink-a65);margin:6px 0 16px;letter-spacing:.04em">${fmtTime(r.gradedAt)}</div>`).join('');
 }
 
 /* ============================================================
@@ -843,14 +906,14 @@ async function renderStudentResults(){
 async function renderSettings(){
   document.getElementById('content').innerHTML = `
     <div class="card" style="max-width:420px">
-      <div class="card-h"><i class="ti ti-lock"></i>Change password</div>
+      <div class="card-h"><i class="ti ti-lock"></i>Change Password</div>
       <div class="card-sub">Update the password for ${esc(currentUser.email)}</div>
-      <div class="fi"><label class="fl">Current password</label><input class="inp" type="password" id="cp-cur"></div>
-      <div class="fi"><label class="fl">New password</label><input class="inp" type="password" id="cp-new" placeholder="Minimum 8 characters"></div>
-      <div class="fi"><label class="fl">Confirm new password</label><input class="inp" type="password" id="cp-conf"></div>
+      <div class="fi"><label class="fl">Current Password</label><input class="inp" type="password" id="cp-cur"></div>
+      <div class="fi"><label class="fl">New Password</label><input class="inp" type="password" id="cp-new" placeholder="Minimum 8 characters"></div>
+      <div class="fi"><label class="fl">Confirm New Password</label><input class="inp" type="password" id="cp-conf"></div>
       <div class="errmsg" id="cp-err"></div>
       <div class="okmsg" id="cp-ok"></div>
-      <button class="btn" id="cp-save"><i class="ti ti-check"></i>Update password</button>
+      <button class="btn" id="cp-save"><i class="ti ti-check"></i>Update Password</button>
     </div>`;
   document.getElementById('cp-save').addEventListener('click', async ()=>{
     const err = document.getElementById('cp-err'), ok = document.getElementById('cp-ok');
