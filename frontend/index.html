@@ -840,7 +840,7 @@ async function runGrading(){
   const examType = document.getElementById('grade-examtype').value.trim();
 
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Grading…';
-  resultBox.innerHTML = '<div class="card" style="text-align:center;color:var(--ink-a65);font-size:13px">Reading the answer sheet and comparing against the answer key…</div>';
+  resultBox.innerHTML = '<div class="card" style="text-align:center;color:var(--ink-a65);font-size:13px">Reading the answer sheet and comparing against the answer key… large multi-page sheets take longer and are processed page by page for reliability.</div>';
   try{
     const form = new FormData();
     if(gradeFiles.qb) form.append('qb', gradeFiles.qb);
@@ -851,8 +851,12 @@ async function runGrading(){
     form.append('rollNo', roll);
     form.append('studentName', studentName);
     form.append('examType', examType);
-    const { result } = await api('/grade', { method:'POST', body: form });
+    const { result, pipeline, pageCount } = await api('/grade', { method:'POST', body: form });
     renderGradeResult(result, { subject, examType, studentName, rollNo: roll });
+    if(pipeline === 'transcribed'){
+      document.getElementById('grade-result').insertAdjacentHTML('afterbegin',
+        `<div style="background:var(--crim-a10);border:1px solid var(--crim-a35);border-radius:6px;padding:10px 14px;font-size:11.5px;color:var(--ink);margin-bottom:12px">Large document (${pageCount} pages) — graded page-by-page for reliability rather than in one pass.</div>`);
+    }
     if(roll) showToast('Result saved for roll '+roll.toUpperCase());
   }catch(e){
     resultBox.innerHTML = `<div class="card" style="color:var(--crimson);font-size:13px">Could not grade this sheet: ${esc(e.message)}</div>`;

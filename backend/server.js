@@ -415,6 +415,119 @@ async function pdfBufferToImageFiles(buffer, originalName) {
   return images;
 }
 
+// ---- large-document pipeline (transcribe page-by-page, then grade from text) ----
+// For very large uploads (e.g. a 20+ page single answer script), sending every page
+// as image/PDF data in one grading request holds all of it in memory at once and can
+// crash a small server before the AI even responds. This path instead: counts pages,
+// and if the total is large, renders and transcribes ONE page at a time (each page's
+// image is discarded from memory right after its text comes back), then grades from
+// the combined, much smaller, text transcript instead of raw images. Slower overall
+// (many small calls instead of one big one) but far more reliable at this size — a
+// completed grade after a longer wait beats a crashed request every time.
+const LARGE_DOC_PAGE_THRESHOLD = 8;
+const MAX_TRANSCRIBE_PAGES = 60; // safety cap so a malformed/huge PDF can't run forever
+
+async function getFilePageCount(file) {
+  if (file.mimetype !== 'application/pdf') return 1;
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(file.buffer), disableFontFace: true }).promise;
+  return pdf.numPages;
+}
+
+async function pdfBufferToAllImageFiles(buffer, originalName, maxPages = MAX_TRANSCRIBE_PAGES) {
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer), disableFontFace: true }).promise;
+  const pageCount = Math.min(pdf.numPages, maxPages);
+  const images = [];
+  for (let i = 1; i <= pageCount; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = createCanvas(viewport.width, viewport.height);
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    images.push({ buffer: canvas.toBuffer('image/png'), mimetype: 'image/png', originalname: `${originalName}-p${i}.png` });
+  }
+  return images;
+}
+
+const TRANSCRIBE_PROMPT = 'Transcribe all text and handwriting visible in this exam page exactly as written, in reading order. Preserve question numbers exactly as they appear. If a word is genuinely illegible, write [unclear] there but still give your best reading otherwise. Output only the transcription — no commentary, no markdown, no summary.';
+
+// One page in, one page's worth of text out. Tries providers in PROVIDER_ORDER (first
+// configured key only, per provider — this runs once per page, so it stays lightweight
+// rather than doing full key rotation on every single page).
+async function transcribePageImage(file) {
+  for (const name of PROVIDER_ORDER) {
+    try {
+      if (name === 'gemini' && GEMINI_API_KEYS.length) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODELS[0]}:generateContent?key=${GEMINI_API_KEYS[0]}`;
+        const res = await fetch(url, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ inlineData: { mimeType: file.mimetype, data: file.buffer.toString('base64') } }, { text: TRANSCRIBE_PROMPT }] }],
+            generationConfig: { temperature: 0 }
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || 'Gemini transcription failed.');
+        const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+        if (text.trim()) return text.trim();
+        throw new Error('empty transcription');
+      }
+      if (name === 'openai' && OPENAI_API_KEYS.length) {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEYS[0]}` },
+          body: JSON.stringify({
+            model: OPENAI_MODEL, temperature: 0,
+            messages: [{ role: 'user', content: [
+              { type: 'image_url', image_url: { url: `data:${file.mimetype};base64,${file.buffer.toString('base64')}` } },
+              { type: 'text', text: TRANSCRIBE_PROMPT }
+            ] }]
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || 'OpenAI transcription failed.');
+        const text = data.choices?.[0]?.message?.content || '';
+        if (text.trim()) return text.trim();
+        throw new Error('empty transcription');
+      }
+      if (name === 'anthropic' && ANTHROPIC_API_KEYS.length) {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEYS[0], 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-5', max_tokens: 1500, temperature: 0,
+            messages: [{ role: 'user', content: [
+              { type: 'image', source: { type: 'base64', media_type: file.mimetype, data: file.buffer.toString('base64') } },
+              { type: 'text', text: TRANSCRIBE_PROMPT }
+            ] }]
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || 'Claude transcription failed.');
+        const block = (data.content || []).find(b => b.type === 'text');
+        if (block?.text?.trim()) return block.text.trim();
+        throw new Error('empty transcription');
+      }
+    } catch (e) {
+      continue; // try the next provider for this page
+    }
+  }
+  return '[Could not transcribe this page]';
+}
+
+// Renders every page of a file and transcribes them one at a time (sequential, on
+// purpose — keeps only one page's image in memory at any moment).
+async function transcribeFileToText(file, label) {
+  const pages = file.mimetype === 'application/pdf'
+    ? await pdfBufferToAllImageFiles(file.buffer, label)
+    : [file];
+  const parts = [];
+  for (let i = 0; i < pages.length; i++) {
+    const text = await transcribePageImage(pages[i]);
+    parts.push(pages.length > 1 ? `--- ${label}, page ${i + 1} ---\n${text}` : text);
+  }
+  return parts.join('\n\n');
+}
+
 async function gradeWithOpenAIKey(apiKey, imageFiles, promptText) {
   const content = imageFiles.map(f => ({
     type: 'image_url',
@@ -496,6 +609,24 @@ async function gradeWithAnthropic(fileList, promptText) {
   throw new Error('All Anthropic keys failed — ' + errors.join(' || '));
 }
 
+function buildGradingPromptFromText({ instructions, subject, examType, studentName, rollNo, qbText, keyText, sheetText }) {
+  return `You are grading a student's exam answer sheet. The content below was transcribed from the original handwritten/typed pages (question bank, then answer key, then the student's answer sheet, where present) — read it the same way you would the original images.
+
+Student: ${studentName || 'Not provided'}
+Roll number: ${rollNo || 'Not provided'}
+Subject: ${subject || 'Exam'}
+Exam type: ${examType || 'Not specified'}
+
+Teacher's grading instructions: ${instructions || 'Use standard grading: correct method and correct final answer both count.'}
+
+Grade consistently and deterministically — if shown the same content again, produce the same marks and feedback every time.
+
+${qbText ? `QUESTION BANK:\n${qbText}\n\n` : ''}${keyText ? `ANSWER KEY:\n${keyText}\n\n` : ''}STUDENT ANSWER SHEET:\n${sheetText}
+
+Respond with ONLY valid JSON (no markdown fences, no commentary) in exactly this shape:
+{"totalObtained":number,"totalMarks":number,"passed":boolean,"overallFeedback":"short summary string","questions":[{"qNo":"1","obtained":number,"outOf":number,"feedback":"short specific feedback"}]}`;
+}
+
 const PROVIDERS = { gemini: gradeWithGemini, openai: gradeWithOpenAI, anthropic: gradeWithAnthropic };
 
 // Tries each configured provider in PROVIDER_ORDER; on any failure (deprecated model,
@@ -529,18 +660,38 @@ app.post('/api/grade', auth, requireRole('teacher'),
     if (files.qb && files.qb[0]) fileList.push(files.qb[0]);
     if (files.key && files.key[0]) fileList.push(files.key[0]);
     fileList.push(files.sheet[0]);
-    const promptText = buildGradingPrompt({ instructions, subject, examType, studentName, rollNo });
 
     try {
-      const { text: rawText, provider } = await gradeExam(fileList, promptText);
+      // Count pages up front — cheap (just reads the PDF structure, doesn't render
+      // anything yet) — to decide which pipeline to use.
+      const pageCounts = await Promise.all(fileList.map(f => getFilePageCount(f)));
+      const totalPages = pageCounts.reduce((a, b) => a + b, 0);
+      const isLargeDoc = totalPages > LARGE_DOC_PAGE_THRESHOLD;
+
+      let rawText, provider;
+      if (isLargeDoc) {
+        console.log(`Large document (${totalPages} pages) — using page-by-page transcription pipeline.`);
+        const qbFile = files.qb && files.qb[0];
+        const keyFile = files.key && files.key[0];
+        const sheetFile = files.sheet[0];
+        const qbText = qbFile ? await transcribeFileToText(qbFile, 'Question Bank') : '';
+        const keyText = keyFile ? await transcribeFileToText(keyFile, 'Answer Key') : '';
+        const sheetText = await transcribeFileToText(sheetFile, 'Answer Sheet');
+        const promptText = buildGradingPromptFromText({ instructions, subject, examType, studentName, rollNo, qbText, keyText, sheetText });
+        ({ text: rawText, provider } = await gradeExam([], promptText));
+      } else {
+        const promptText = buildGradingPrompt({ instructions, subject, examType, studentName, rollNo });
+        ({ text: rawText, provider } = await gradeExam(fileList, promptText));
+      }
+
       const clean = rawText.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(clean);
 
       if (rollNo) {
         db.addResult(rollNo, { ...parsed, subject: subject || 'Exam', examType: examType || '', studentName: studentName || '', gradedAt: Date.now(), gradedBy: req.user.email });
       }
-      console.log(`Graded via ${provider}`);
-      res.json({ result: parsed });
+      console.log(`Graded via ${provider}${isLargeDoc ? ' (transcribed pipeline)' : ''}`);
+      res.json({ result: parsed, pipeline: isLargeDoc ? 'transcribed' : 'direct', pageCount: totalPages });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Could not grade this sheet. ' + e.message });
