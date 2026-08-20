@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: scangrade-api
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: FRONTEND_URL
+        sync: false
+      - key: ADMIN_EMAIL
+        value: madhanadmin@gmail.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: TEACHER_EMAIL
+        value: staffgrade@gmail.com
+      - key: TEACHER_PASSWORD
+        sync: false
+      - key: STUDENT_EMAIL
+        sync: false
+      - key: STUDENT_PASSWORD
+        sync: false
+      - key: STUDENT_NAME
+        value: Madhan
+      - key: STUDENT_ROLL
+        value: Es25sc28
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PROVIDER_ORDER
+        value: gemini,openai,anthropic
+      - key: GEMINI_API_KEYS
+        sync: false
+      - key: GEMINI_MODELS
+        value: gemini-2.0-flash,gemini-1.5-flash
+      - key: OPENAI_API_KEYS
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: ANTHROPIC_API_KEYS
+        sync: false
