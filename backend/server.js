@@ -149,7 +149,7 @@ function requireRole(role) {
 }
 
 // ---- health check (useful for Render / uptime pings) ----
-app.get('/api/health', (req, res) => res.json({ ok: true, provider: AI_PROVIDER }));
+app.get('/api/health', (req, res) => res.json({ ok: true, providers: PROVIDER_ORDER }));
 
 // ============ AUTH ============
 app.post('/api/auth/login', async (req, res) => {
