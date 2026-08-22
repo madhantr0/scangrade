@@ -514,18 +514,38 @@ async function transcribePageImage(file) {
   return '[Could not transcribe this page]';
 }
 
-// Renders every page of a file and transcribes them one at a time (sequential, on
-// purpose — keeps only one page's image in memory at any moment).
-async function transcribeFileToText(file, label) {
+// Runs async tasks with a concurrency cap — fast (parallel) without holding every
+// page's image in memory at once like a single giant request would. A limit of 4
+// keeps peak memory low on a small free-tier instance while cutting wall-clock time
+// roughly 4x versus doing every page one at a time.
+async function mapWithConcurrency(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+// Renders every page of a file and transcribes them with bounded concurrency.
+// onProgress(label, done, total) fires after each page completes, so the caller can
+// stream live status back to the client instead of going silent for minutes.
+async function transcribeFileToText(file, label, onProgress) {
   const pages = file.mimetype === 'application/pdf'
     ? await pdfBufferToAllImageFiles(file.buffer, label)
     : [file];
-  const parts = [];
-  for (let i = 0; i < pages.length; i++) {
-    const text = await transcribePageImage(pages[i]);
-    parts.push(pages.length > 1 ? `--- ${label}, page ${i + 1} ---\n${text}` : text);
-  }
-  return parts.join('\n\n');
+  let done = 0;
+  const texts = await mapWithConcurrency(pages, 4, async (page) => {
+    const text = await transcribePageImage(page);
+    done++;
+    if (onProgress) onProgress(label, done, pages.length);
+    return text;
+  });
+  return texts.map((text, i) => pages.length > 1 ? `--- ${label}, page ${i + 1} ---\n${text}` : text).join('\n\n');
 }
 
 async function gradeWithOpenAIKey(apiKey, imageFiles, promptText) {
@@ -655,6 +675,13 @@ app.post('/api/grade', auth, requireRole('teacher'),
     const files = req.files || {};
     if (!files.sheet || !files.sheet[0]) return res.status(400).json({ error: 'Answer sheet is required.' });
 
+    // Streamed as newline-delimited JSON so the connection carries real bytes the
+    // whole time instead of going silent for minutes on a large document — some
+    // mobile networks/proxies drop a connection that looks idle, which is what was
+    // showing up as "NetworkError" on long grades.
+    res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' });
+    const send = (obj) => res.write(JSON.stringify(obj) + '\n');
+
     const { instructions, subject, rollNo, studentName, examType } = req.body || {};
     const fileList = [];
     if (files.qb && files.qb[0]) fileList.push(files.qb[0]);
@@ -662,8 +689,7 @@ app.post('/api/grade', auth, requireRole('teacher'),
     fileList.push(files.sheet[0]);
 
     try {
-      // Count pages up front — cheap (just reads the PDF structure, doesn't render
-      // anything yet) — to decide which pipeline to use.
+      send({ type: 'progress', message: 'Checking document size…' });
       const pageCounts = await Promise.all(fileList.map(f => getFilePageCount(f)));
       const totalPages = pageCounts.reduce((a, b) => a + b, 0);
       const isLargeDoc = totalPages > LARGE_DOC_PAGE_THRESHOLD;
@@ -671,15 +697,19 @@ app.post('/api/grade', auth, requireRole('teacher'),
       let rawText, provider;
       if (isLargeDoc) {
         console.log(`Large document (${totalPages} pages) — using page-by-page transcription pipeline.`);
+        send({ type: 'progress', message: `Large document detected (${totalPages} pages) — reading page by page…` });
         const qbFile = files.qb && files.qb[0];
         const keyFile = files.key && files.key[0];
         const sheetFile = files.sheet[0];
-        const qbText = qbFile ? await transcribeFileToText(qbFile, 'Question Bank') : '';
-        const keyText = keyFile ? await transcribeFileToText(keyFile, 'Answer Key') : '';
-        const sheetText = await transcribeFileToText(sheetFile, 'Answer Sheet');
+        const onPageDone = (label, done, total) => send({ type: 'progress', message: `${label}: page ${done} of ${total} read` });
+        const qbText = qbFile ? await transcribeFileToText(qbFile, 'Question Bank', onPageDone) : '';
+        const keyText = keyFile ? await transcribeFileToText(keyFile, 'Answer Key', onPageDone) : '';
+        const sheetText = await transcribeFileToText(sheetFile, 'Answer Sheet', onPageDone);
+        send({ type: 'progress', message: 'All pages read — grading now…' });
         const promptText = buildGradingPromptFromText({ instructions, subject, examType, studentName, rollNo, qbText, keyText, sheetText });
         ({ text: rawText, provider } = await gradeExam([], promptText));
       } else {
+        send({ type: 'progress', message: 'Reading and grading the answer sheet…' });
         const promptText = buildGradingPrompt({ instructions, subject, examType, studentName, rollNo });
         ({ text: rawText, provider } = await gradeExam(fileList, promptText));
       }
@@ -691,10 +721,12 @@ app.post('/api/grade', auth, requireRole('teacher'),
         db.addResult(rollNo, { ...parsed, subject: subject || 'Exam', examType: examType || '', studentName: studentName || '', gradedAt: Date.now(), gradedBy: req.user.email });
       }
       console.log(`Graded via ${provider}${isLargeDoc ? ' (transcribed pipeline)' : ''}`);
-      res.json({ result: parsed, pipeline: isLargeDoc ? 'transcribed' : 'direct', pageCount: totalPages });
+      send({ type: 'result', result: parsed, pipeline: isLargeDoc ? 'transcribed' : 'direct', pageCount: totalPages });
     } catch (e) {
       console.error(e);
-      res.status(500).json({ error: 'Could not grade this sheet. ' + e.message });
+      send({ type: 'error', error: 'Could not grade this sheet. ' + e.message });
+    } finally {
+      res.end();
     }
   });
 

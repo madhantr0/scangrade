@@ -840,7 +840,11 @@ async function runGrading(){
   const examType = document.getElementById('grade-examtype').value.trim();
 
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Grading…';
-  resultBox.innerHTML = '<div class="card" style="text-align:center;color:var(--ink-a65);font-size:13px">Reading the answer sheet and comparing against the answer key… large multi-page sheets take longer and are processed page by page for reliability.</div>';
+  const showProgress = (msg) => {
+    resultBox.innerHTML = `<div class="card" style="text-align:center;color:var(--ink-a65);font-size:13px"><span class="spin" style="margin-right:8px;vertical-align:-2px"></span>${esc(msg)}</div>`;
+  };
+  showProgress('Uploading…');
+
   try{
     const form = new FormData();
     if(gradeFiles.qb) form.append('qb', gradeFiles.qb);
@@ -851,7 +855,42 @@ async function runGrading(){
     form.append('rollNo', roll);
     form.append('studentName', studentName);
     form.append('examType', examType);
-    const { result, pipeline, pageCount } = await api('/grade', { method:'POST', body: form });
+
+    const headers = {};
+    if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+    const res = await fetch(API_BASE + '/api/grade', { method:'POST', headers, body: form });
+    if(!res.ok){
+      const data = await res.json().catch(()=>({}));
+      throw new Error(data.error || `Request failed (${res.status}).`);
+    }
+
+    // The response streams newline-delimited JSON — progress lines while it works,
+    // then a final result (or error) line. Reading it live keeps the connection
+    // visibly active instead of one long silent wait.
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalPayload = null;
+
+    while(true){
+      const { done, value } = await reader.read();
+      if(done) break;
+      buffer += decoder.decode(value, { stream:true });
+      let nl;
+      while((nl = buffer.indexOf('\n')) >= 0){
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl+1);
+        if(!line) continue;
+        const msg = JSON.parse(line);
+        if(msg.type === 'progress') showProgress(msg.message);
+        else if(msg.type === 'result' || msg.type === 'error') finalPayload = msg;
+      }
+    }
+
+    if(!finalPayload) throw new Error('Connection ended before grading finished.');
+    if(finalPayload.type === 'error') throw new Error(finalPayload.error);
+
+    const { result, pipeline, pageCount } = finalPayload;
     renderGradeResult(result, { subject, examType, studentName, rollNo: roll });
     if(pipeline === 'transcribed'){
       document.getElementById('grade-result').insertAdjacentHTML('afterbegin',
